@@ -79,7 +79,7 @@
             ]
         },
         {
-            "command": "E:\\T113\\t113_boot\\tool\\mk_image.exe",
+            "command": "E:\\T113\\aw_t113_i_boot\\tool\\mk_image.exe",
             "args": [
                 ".\\build\\t113.bin",
                 "8192"
