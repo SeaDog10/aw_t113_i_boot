@@ -45,6 +45,10 @@ typedef struct {
 
 int		 sunxi_spi_init(sunxi_spi_t *spi);
 void	 sunxi_spi_disable(sunxi_spi_t *spi);
+
+int spi_transfer(sunxi_spi_t *spi, spi_io_mode_t mode, void *txbuf, uint32_t txlen, void *rxbuf, uint32_t rxlen);
+int spi_transfer_then_transfer(sunxi_spi_t *spi, spi_io_mode_t mode, void *txbuf, uint32_t txlen, void *txbuf2, uint32_t txlen2);
+
 int		 spi_nand_detect(sunxi_spi_t *spi);
 uint32_t spi_nand_read(sunxi_spi_t *spi, uint8_t *buf, uint32_t addr, uint32_t rxlen);
 
