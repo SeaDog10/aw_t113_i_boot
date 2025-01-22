@@ -485,6 +485,23 @@ static void spi_write_tx_fifo(sunxi_spi_t *spi, uint8_t *buf, uint32_t len)
 	}
 }
 
+static void spi_write_tx_fifo_double(sunxi_spi_t *spi, uint8_t *buf, uint32_t len, uint8_t *buf2, uint32_t len2)
+{
+    while (len-- > 0) {
+        while (spi_query_txfifo(spi) > 63) {
+            udelay(100);
+        };
+        write8(spi->base + SPI_TXD, *buf++);
+    }
+
+    while (len2-- > 0) {
+        while (spi_query_txfifo(spi) > 63) {
+            udelay(100);
+        };
+        write8(spi->base + SPI_TXD, *buf2++);
+    }
+}
+
 static uint32_t spi_read_rx_fifo(sunxi_spi_t *spi, uint8_t *buf, uint32_t len)
 {
 	// Wait for data
@@ -522,10 +539,10 @@ static void spi_set_io_mode(sunxi_spi_t *spi, spi_io_mode_t mode)
 	write32(spi->base + SPI_BCC, bcc);
 }
 
-static int spi_transfer(sunxi_spi_t *spi, spi_io_mode_t mode, void *txbuf, uint32_t txlen, void *rxbuf, uint32_t rxlen)
+int spi_transfer(sunxi_spi_t *spi, spi_io_mode_t mode, void *txbuf, uint32_t txlen, void *rxbuf, uint32_t rxlen)
 {
 	uint32_t stxlen, fcr;
-	trace("SPI: tsfr mode=%u tx=%" PRIu32 " rx=%" PRIu32 "\r\n", mode, txlen, rxlen);
+    // trace("SPI: tsfr mode=%u tx=%" PRIu32 " rx=%" PRIu32 "\r\n", mode, txlen, rxlen);
 
 	spi_set_io_mode(spi, mode);
 
@@ -574,10 +591,49 @@ static int spi_transfer(sunxi_spi_t *spi, spi_io_mode_t mode, void *txbuf, uint3
 		}
 	}
 
-	trace("SPI: ISR=0x%" PRIx32 "\r\n", read32(spi->base + SPI_ISR));
+    // trace("SPI: ISR=0x%" PRIx32 "\r\n", read32(spi->base + SPI_ISR));
 
 	return txlen + rxlen;
 }
+
+int spi_transfer_then_transfer(sunxi_spi_t *spi, spi_io_mode_t mode, void *txbuf, uint32_t txlen, void *txbuf2, uint32_t txlen2)
+{
+    uint32_t stxlen, fcr;
+    // trace("SPI: tsfr mode=%u tx=%" PRIu32 " rx=%" PRIu32 "\r\n", mode, txlen, rxlen);
+
+    spi_set_io_mode(spi, mode);
+
+    switch (mode) {
+        case SPI_IO_QUAD_IO:
+            stxlen = 1; // Only opcode
+            break;
+        case SPI_IO_DUAL_RX:
+        case SPI_IO_QUAD_RX:
+            stxlen = txlen; // Only tx data
+            break;
+        case SPI_IO_SINGLE:
+        default:
+            stxlen = txlen + txlen2; // both tx and rx data
+            break;
+    };
+
+    // Full size of transfer, controller will wait for TX FIFO to be filled if txlen > 0
+    spi_set_counters(spi, txlen+txlen2, 0, stxlen, 0);
+    spi_reset_fifo(spi);
+    write32(spi->base + SPI_ISR, 0); // Clear ISR
+
+    write32(spi->base + SPI_TCR, read32(spi->base + SPI_TCR) | (1 << 31)); // Start exchange when data in FIFO
+
+    spi_write_tx_fifo_double(spi, txbuf, txlen, txbuf2, txlen2);
+
+    fcr = read32(spi->base + SPI_FCR);
+
+    // Disable DMA request by default
+    write32(spi->base + SPI_FCR, (fcr & ~SPI_FCR_RX_DRQEN_MSK));
+
+    return txlen + txlen2;
+}
+
 /*
  * SPI NAND functions
  */
