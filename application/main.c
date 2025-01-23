@@ -1,5 +1,4 @@
 #include "main.h"
-#include "fdt.h"
 #include "sunxi_gpio.h"
 #include "sunxi_clk.h"
 #include "sunxi_dma.h"
@@ -10,7 +9,9 @@
 #include "barrier.h"
 #include "memheap.h"
 #include "drv_nand.h"
+#include "string.h"
 
+# if 0
 static void hexdump(const void *p, uint32_t len)
 {
     unsigned char *buf = (unsigned char *)p;
@@ -46,12 +47,17 @@ static void hexdump(const void *p, uint32_t len)
         message("\r\n");
     }
 }
+#endif
 
 int main(void)
 {
     int32_t ret = 0;
     uint32_t i = 0;
     uint32_t total, used, maxused;
+    void (*app_entry)(void);
+    uint8_t *dst_addr = 0x40020000;
+
+    app_entry = (void (*)(void))0x40020000;
 
     gpio_t led = GPIO_PIN(PORTC, 0);
 
@@ -92,11 +98,27 @@ int main(void)
 
     debug("Hello hg'boot\r\n");
 
-    while(1)
+    for (i = 0; i < 512; i++)
     {
-        sunxi_gpio_set_value(led, 0);
-        mdelay(500);
-        sunxi_gpio_set_value(led, 1);
-        mdelay(500);
+        nand_read_page(&nand_flash, 512 + i, dst_addr + (nand_flash.page_size * i), 2048, NULL, 0);
     }
+
+    info("booting rtt...\r\n");
+
+	arm32_mmu_disable();
+	arm32_dcache_disable();
+	arm32_icache_disable();
+	arm32_interrupt_disable();
+
+    app_entry();
+
+    return 0;
+
+    // while(1)
+    // {
+    //     sunxi_gpio_set_value(led, 0);
+    //     mdelay(500);
+    //     sunxi_gpio_set_value(led, 1);
+    //     mdelay(500);
+    // }
 }

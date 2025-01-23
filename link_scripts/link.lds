@@ -5,10 +5,10 @@ SEARCH_DIR(.)
 /* Memory Spaces Definitions */
 MEMORY
 {
-  ram   (rwx) : ORIGIN = 0x00020000, LENGTH = 0x14000
-  heap  (rw)  : ORIGIN = 0x00034000, LENGTH = 0x4000
-/*  ram   (rwx) : ORIGIN = 0x40000000, LENGTH = 0x14000 */
-/*  heap  (rw)  : ORIGIN = 0x40014000, LENGTH = 0x4000  */
+/*  ram   (rwx) : ORIGIN = 0x00020000, LENGTH = 0x14000 */
+/*  heap  (rw)  : ORIGIN = 0x00034000, LENGTH = 0x4000  */
+  ram   (rwx) : ORIGIN = 0x40000000, LENGTH = 0x14000 
+  heap  (rw)  : ORIGIN = 0x40014000, LENGTH = 0x4000  
 }
 
 STACK_SIZE = 0x1000; /* 4KB */
