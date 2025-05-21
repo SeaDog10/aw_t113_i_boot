@@ -4,7 +4,7 @@
 #include "string.h"
 #include "stdio.h"
 
-#define PARTITION_NAME_MAX   24
+#define PARTITION_NAME_MAX   16
 
 typedef struct slist_node
 {
@@ -14,9 +14,9 @@ typedef struct slist_node
 struct partition_ops
 {
     int (*init) (void);
-    int (*read) (unsigned int offset, unsigned char *buf, unsigned int size);
-    int (*write)(unsigned int offset, const unsigned char  *buf, unsigned int size);
-    int (*erase)(unsigned int offset, unsigned int size);
+    int (*read) (unsigned int addr, unsigned char *buf, unsigned int size);
+    int (*write)(unsigned int addr, const unsigned char  *buf, unsigned int size);
+    int (*erase)(unsigned int addr, unsigned int size);
 };
 
 struct partition_device
@@ -49,5 +49,7 @@ struct partition *partition_find(const char *name);
 int partition_read(struct partition *part, void *buf, unsigned int offset, unsigned int len);
 int partition_write(struct partition *part, void *buf, unsigned int offset, unsigned int len);
 int partition_erase(struct partition *part, unsigned int offset, unsigned int len);
+
+void show_partition_info(void);
 
 #endif
