@@ -7,8 +7,6 @@
 #include "debug.h"
 #include "board.h"
 #include "barrier.h"
-#include "memheap.h"
-#include "drv_nand.h"
 #include "string.h"
 
 # if 0
@@ -49,76 +47,83 @@ static void hexdump(const void *p, uint32_t len)
 }
 #endif
 
+#define IMG_OFFSET_IN_FLASH 0x100000
+#define IMG_MAGIC 0x12345678
+
+typedef struct boot_head
+{
+    uint32_t img_magic;
+    uint32_t img_size;
+    uint32_t img_load;
+    uint32_t img_entry;
+}boot_head_t;
+
 int main(void)
 {
-    int32_t ret = 0;
     uint32_t i = 0;
-    uint32_t total, used, maxused;
+    uint32_t count = 0;
     void (*app_entry)(void);
-    uint8_t *dst_addr = 0x40020000;
-
-    app_entry = (void (*)(void))0x40020000;
-
-    gpio_t led = GPIO_PIN(PORTC, 0);
+    uint8_t *dst_addr;
+    boot_head_t img_head;
 
     board_init();
     sunxi_clk_init();
-
-#ifndef BUILD_FOR_DEBUG
     sunxi_dram_init();
-#endif
-
-    sunxi_clk_dump();
-
     dma_init();
-
-    debug("__memheap_start : 0x%08x, __memheap_end : 0x%08x\r\n", (uint32_t)HEAP_BEGIN, (uint32_t)HEAP_END);
-    ret = rt_memheap_init(&system_heap, HEAP_BEGIN, HEAP_SIZE);
-    if (ret != 0)
-    {
-        error("memheap init failed\r\n");
-    }
-    else
-    {
-        rt_memheap_info(&system_heap, &total, &used, &maxused);
-        debug("memheap init success, total: 0x%08x, used: 0x%08x, maxused: 0x%08x\r\n", total, used, maxused);
-    }
 
     debug("SPI: init\r\n");
     if (sunxi_spi_init(&sunxi_spi0) != 0)
     {
         error("SPI: init failed\r\n");
+        while(1);
     }
 
-    ret = nand_init(&nand_flash, &sunxi_spi0);
-    if (ret == 0)
+    if (spi_nand_detect(&sunxi_spi0) != 0)
     {
-        debug("NAND: init ok\r\n");
+        error("SPI: nand detect failed\r\n");
+        while(1);
     }
 
-    debug("Hello hg'boot\r\n");
+    spi_nand_read(&sunxi_spi0, (uint8_t *)&img_head, IMG_OFFSET_IN_FLASH, sizeof(boot_head_t));
 
-    for (i = 0; i < 512; i++)
+    if (img_head.img_magic != IMG_MAGIC)
     {
-        nand_read_page(&nand_flash, 512 + i, dst_addr + (nand_flash.page_size * i), 2048, NULL, 0);
+        error("img_magic err\r\n");
+        while(1);
     }
 
-    info("booting rtt...\r\n");
+    debug("img_magic: 0x%08x\r\n", img_head.img_magic);
+    debug("img_size:  0x%08x\r\n", img_head.img_size);
+    debug("img_load:  0x%08x\r\n", img_head.img_load);
+    debug("img_entry: 0x%08x\r\n", img_head.img_entry);
 
-	arm32_mmu_disable();
-	arm32_dcache_disable();
-	arm32_icache_disable();
-	arm32_interrupt_disable();
+    app_entry = (void (*)(void))img_head.img_entry;
+    dst_addr = (uint8_t *)img_head.img_load;
+
+    count = img_head.img_size/2048;
+    if (img_head.img_size%2048)
+    {
+        count++;
+    }
+
+    for (i = 0; i < count; i++)
+    {
+        spi_nand_read(&sunxi_spi0, (dst_addr+(2048*i)), (IMG_OFFSET_IN_FLASH+(2048*i)), 2048);
+    }
+
+    sunxi_spi_disable(&sunxi_spi0);
+    dma_exit();
+
+    arm32_mmu_disable();
+    arm32_dcache_disable();
+    arm32_icache_disable();
+    arm32_interrupt_disable();
 
     app_entry();
 
-    return 0;
+    error("boot err.\r\n");
 
-    // while(1)
-    // {
-    //     sunxi_gpio_set_value(led, 0);
-    //     mdelay(500);
-    //     sunxi_gpio_set_value(led, 1);
-    //     mdelay(500);
-    // }
+    while(1)
+    {
+    };
 }
