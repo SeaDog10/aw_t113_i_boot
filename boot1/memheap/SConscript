@@ -21,8 +21,8 @@ include_path  = []
 user_defines  = []
 
 # User Define
-include_path.append(cwd)
-source += Glob('*.c')
+# include_path.append(cwd)
+# source += Glob('*.c')
 # User Define
 
 pre_defines += user_defines

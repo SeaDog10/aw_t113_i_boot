@@ -21,8 +21,8 @@ include_path  = []
 user_defines  = []
 
 # User Define
-#添加当前路径到头文件列表
-
+include_path.append(cwd)
+source += Glob('*.c')
 # User Define
 
 pre_defines += user_defines

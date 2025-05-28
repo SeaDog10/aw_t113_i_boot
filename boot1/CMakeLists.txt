@@ -49,31 +49,28 @@ add_link_options(
 # 添加包含路径
 include_directories(
     ${CMAKE_SOURCE_DIR}/application
-    ${CMAKE_SOURCE_DIR}/boards/aw_boot_lib
-    ${CMAKE_SOURCE_DIR}/boards/include
-    ${CMAKE_SOURCE_DIR}/lib
-    ${CMAKE_SOURCE_DIR}/memheap
-    ${CMAKE_SOURCE_DIR}/partition
+    ${CMAKE_SOURCE_DIR}/boards
+    ${CMAKE_SOURCE_DIR}/libcpu
+    # ${CMAKE_SOURCE_DIR}/memheap
+    # ${CMAKE_SOURCE_DIR}/partition
 )
 
 # 添加源文件
 file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/application/*.c"
-    "${CMAKE_SOURCE_DIR}/boards/aw_boot_lib/*.c"
-    "${CMAKE_SOURCE_DIR}/boards/aw_boot_lib/*.S"
-    "${CMAKE_SOURCE_DIR}/lib/*.c"
-    "${CMAKE_SOURCE_DIR}/memheap/*.c"
-    "${CMAKE_SOURCE_DIR}/partition/*.c"
+    "${CMAKE_SOURCE_DIR}/boards/*.c"
+    "${CMAKE_SOURCE_DIR}/libcpu/*.c"
+    "${CMAKE_SOURCE_DIR}/libcpu/*.S"
+    # "${CMAKE_SOURCE_DIR}/memheap/*.c"
+    # "${CMAKE_SOURCE_DIR}/partition/*.c"
 )
 
 # 构建目标
 add_executable(${PROJECT_NAME}.elf ${SRC_FILES} ${LINKER_SCRIPT})
 
-set(MKIMAGE ${CMAKE_SOURCE_DIR}/tool/mk_image.exe)
 # 编译后生成 bin 和 hex 文件（可选）
 add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
     COMMAND ${CMAKE_OBJCOPY} -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
     COMMAND ${SIZE} ${PROJECT_NAME}.elf
     COMMAND ${CMAKE_OBJDUMP} -S ${PROJECT_NAME}.elf > ${PROJECT_NAME}.S
-    COMMAND ${MKIMAGE} ${PROJECT_NAME}.bin 8192
 )
