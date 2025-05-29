@@ -39,6 +39,13 @@ static void shell_uart_putc(void *arg, char c)
     uart_putc(uart, c);
 }
 
+static char shell_uart_getc(void *arg)
+{
+    struct uart_handle *uart = (struct uart_handle *)arg;
+
+    return uart_getc(uart);
+}
+
 int main(void)
 {
     int ret = 0;
@@ -52,7 +59,7 @@ int main(void)
 
     uart_init(&uart0);
 
-    shell_init(shell_uart_putc, &uart0);
+    shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0);
 
     s_printf("hello world\r\n");
 
@@ -70,5 +77,6 @@ int main(void)
 
     while(1)
     {
+        shell_servise();
     }
 }

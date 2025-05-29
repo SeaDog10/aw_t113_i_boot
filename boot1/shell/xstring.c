@@ -41,6 +41,29 @@ char *xstrcpy(char *dst, const char *src)
     return bak;
 }
 
+char *xstrncpy(char *dst, const char *src, unsigned int n)
+{
+    char *bak = dst;
+    char *d = dst;
+    const char *s = src;
+
+    if (n != 0)
+    {
+        do
+        {
+            if ((*d++ = *s++) == 0)
+            {
+                /* NUL pad the remaining n-1 bytes */
+                while (--n != 0)
+                    *d++ = 0;
+                break;
+            }
+        } while (--n != 0);
+    }
+
+    return bak;
+}
+
 char *xstrcat(char *dst, const char *src)
 {
     char *p = dst;
@@ -107,8 +130,6 @@ char *xstrchr(const char *s, int c)
 
     return (char *)s;
 }
-
-/* NOTE: This is the simple-minded O(len(s1) * len(s2)) worst-case approach. */
 
 char *xstrstr(const char *s1, const char *s2)
 {

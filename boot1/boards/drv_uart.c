@@ -3,6 +3,8 @@
 
 #define UART_SORCE_CLK    24000000
 
+static void (*uart_recv_callback)(void *param) = U_NULL;
+
 static int _uart_init(struct uart_handle *uart)
 {
     unsigned int time_out = 1000;
@@ -126,17 +128,38 @@ static int _uart_init(struct uart_handle *uart)
 
 static void uart_irq_handler(int irqno, void *param)
 {
+    unsigned int i = 0;
+    unsigned int rx_len = 0;
     struct uart_handle *uart = (struct uart_handle *)param;
 
     /* get fifo level */
-    uart->rx_len = read32(uart->base + REG_UART_RFL);
-    if (uart->rx_len > 0)
+    rx_len = read32(uart->base + REG_UART_RFL);
+    if (rx_len > 0)
     {
         /* read char */
-        uart->rx_buffer[uart->rx_len - 1] = read32(uart->base + REG_UART_RBR);
-        for (unsigned int i = 0; i < uart->rx_len; i++)
+        for (i = 0; i < rx_len; i++)
         {
-            uart->rx_buffer[i++] = (char)read32(uart->base + REG_UART_RBR)  & 0xFF;;
+            uart->fifo.buffer[uart->fifo.put_index] = (char)read32(uart->base + REG_UART_RBR)  & 0xFF;
+            uart->fifo.put_index += 1;
+            if (uart->fifo.put_index >= UART_SOFT_FIFO_SIZE)
+            {
+                uart->fifo.put_index = 0;
+            }
+
+            if (uart->fifo.put_index == uart->fifo.get_index)
+            {
+                uart->fifo.get_index += 1;
+                uart->fifo.is_full    = 1;
+                if (uart->fifo.get_index >= UART_SOFT_FIFO_SIZE)
+                {
+                    uart->fifo.get_index = 0;
+                }
+            }
+        }
+
+        if (uart_recv_callback)
+        {
+            uart_recv_callback(param);
         }
     }
 }
@@ -155,8 +178,11 @@ int uart_init(struct uart_handle *uart)
 
     for (i = 0; i < UART_SOFT_FIFO_SIZE; i++)
     {
-        uart->rx_buffer[i] = 0;
+        uart->fifo.buffer[i] = 0;
     }
+    uart->fifo.put_index = 0;
+    uart->fifo.get_index = 0;
+    uart->fifo.is_full = 0;
 
     interrupt_install(uart->irq, uart_irq_handler, uart);
     interrupt_umask(uart->irq);
@@ -213,19 +239,37 @@ int uart_putc(struct uart_handle *uart, char c)
 
 char uart_getc(struct uart_handle *uart)
 {
-    static unsigned int num = 0;
+    char ch = -1;
 
     if (uart == U_NULL)
     {
         return -1;
     }
 
-    if (num >= uart->rx_len)
+    if ((uart->fifo.get_index == uart->fifo.put_index) && uart->fifo.is_full == 0)
     {
-        num = 0;
-        uart->rx_len = 0;
         return -1;
     }
 
-    return uart->rx_buffer[num++];
+    ch = uart->fifo.buffer[uart->fifo.get_index];
+    uart->fifo.get_index += 1;
+
+    if (uart->fifo.get_index >= UART_SOFT_FIFO_SIZE)
+    {
+        uart->fifo.get_index = 0;
+    }
+
+    if (uart->fifo.is_full == 1)
+    {
+        uart->fifo.is_full = 0;
+    }
+
+    return ch;
+}
+
+int uart_bind_recv_callback(void (*callback)(void *param))
+{
+    uart_recv_callback = callback;
+
+    return 0;
 }

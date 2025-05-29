@@ -5,8 +5,9 @@
 
 void *xmemset(void *dst, int val, int cnt);
 int xmemcmp(const void *dst, const void *src, unsigned int cnt);
-// unsigned int xstrlen(const char *str);
+unsigned int xstrlen(const char *str);
 char *xstrcpy(char *dst, const char *src);
+char *xstrncpy(char *dst, const char *src, unsigned int n);
 char *xstrcat(char *dst, const char *src);
 int xstrcmp(const char *p1, const char *p2);
 int xstrncmp(const char *p1, const char *p2, unsigned int cnt);

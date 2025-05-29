@@ -91,6 +91,14 @@ struct uart_configure
     enum uart_parity    parity;
 };
 
+struct rt_uart_rx_fifo
+{
+    char         buffer[UART_SOFT_FIFO_SIZE];
+    unsigned int put_index;
+    unsigned int get_index;
+    int          is_full;
+};
+
 struct uart_handle
 {
     /* user define */
@@ -102,13 +110,13 @@ struct uart_handle
     struct iomux_cfg      gpio_rx;
 
     /* private */
-    char rx_buffer[UART_SOFT_FIFO_SIZE];
-    unsigned int rx_len;
+    struct rt_uart_rx_fifo fifo;
 };
 
 int uart_init(struct uart_handle *uart);
 int uart_deinit(struct uart_handle *uart);
 int uart_putc(struct uart_handle *uart, char c);
 char uart_getc(struct uart_handle *uart);
+int uart_bind_recv_callback(void (*callback)(void *param));
 
 #endif /* __DRV_UART_H__ */

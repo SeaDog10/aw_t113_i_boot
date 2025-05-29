@@ -753,7 +753,7 @@ unsigned xvformat(void (*outchar)(void *, char), void *arg, const char *fmt, va_
 						else
 							param.out = (char *)ms_false;
 
-						param.length = (int)xstrlen(param.out);
+						param.length = (int)xfstrlen(param.out);
 						break;
 				}
 
