@@ -226,8 +226,7 @@ unsigned int interrupt_get_prior_group_bits(void)
  * @param new_handler the interrupt service routine to be installed
  * @param old_handler the old interrupt service routine
  */
-isr_handler_t interrupt_install(int vector, isr_handler_t handler,
-                                void *param, const char *name)
+isr_handler_t interrupt_install(int vector, isr_handler_t handler, void *param)
 {
     isr_handler_t old_handler = D_NULL;
 

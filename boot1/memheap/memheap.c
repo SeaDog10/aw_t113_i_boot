@@ -32,14 +32,14 @@
 
 #define RT_MEMHEAP_SIZE         RT_ALIGN(sizeof(struct rt_memheap_item), RT_ALIGN_SIZE)
 #define MEMITEM_SIZE(item)      ((unsigned long)item->next - (unsigned long)item - RT_MEMHEAP_SIZE)
-#define MEMITEM(ptr)            (struct rt_memheap_item*)((uint8_t*)ptr - RT_MEMHEAP_SIZE)
+#define MEMITEM(ptr)            (struct rt_memheap_item*)((unsigned char*)ptr - RT_MEMHEAP_SIZE)
 
 struct rt_memheap system_heap = {0};
 
-static void *rt_memcpy(void *dst, const void *src, uint32_t count)
+static void *rt_memcpy(void *dst, const void *src, unsigned int count)
 {
     char *tmp = (char *)dst, *s = (char *)src;
-    uint32_t len;
+    unsigned int len;
 
     if (tmp <= s || tmp > (s + count))
     {
@@ -90,14 +90,14 @@ static void _remove_next_ptr(struct rt_memheap_item *next_ptr)
  */
 int rt_memheap_init(struct rt_memheap *memheap,
                          void              *start_addr,
-                         uint32_t         size)
+                         unsigned int         size)
 {
     struct rt_memheap_item *item;
 
     // RT_ASSERT(memheap != RT_NULL);
     if (memheap == RT_NULL)
     {
-        error("memheap == RT_NULL\r\n");
+        //error("memheap == RT_NULL\r\n");
         return -RT_ERROR;
     }
 
@@ -128,7 +128,7 @@ int rt_memheap_init(struct rt_memheap *memheap,
     item->prev_free = item;
 
     item->next = (struct rt_memheap_item *)
-                 ((uint8_t *)item + memheap->available_size + RT_MEMHEAP_SIZE);
+                 ((unsigned char *)item + memheap->available_size + RT_MEMHEAP_SIZE);
     item->prev = item->next;
 
     /* block list header */
@@ -168,14 +168,14 @@ int rt_memheap_init(struct rt_memheap *memheap,
  *
  * @return  the pointer to allocated memory or NULL if no free memory was found.
  */
-void *rt_memheap_alloc(struct rt_memheap *heap, uint32_t size)
+void *rt_memheap_alloc(struct rt_memheap *heap, unsigned int size)
 {
-    uint32_t free_size;
+    unsigned int free_size;
     struct rt_memheap_item *header_ptr;
 
     if (heap == RT_NULL)
     {
-        error("heap == RT_NULL\r\n");
+        //error("heap == RT_NULL\r\n");
         return RT_NULL;
     }
 
@@ -214,7 +214,7 @@ void *rt_memheap_alloc(struct rt_memheap *heap, uint32_t size)
 
                 /* split the block. */
                 new_ptr = (struct rt_memheap_item *)
-                          (((uint8_t *)header_ptr) + size + RT_MEMHEAP_SIZE);
+                          (((unsigned char *)header_ptr) + size + RT_MEMHEAP_SIZE);
 
                 /* mark the new block as a memory block and freed. */
                 new_ptr->magic = (RT_MEMHEAP_MAGIC | RT_MEMHEAP_FREED);
@@ -264,7 +264,7 @@ void *rt_memheap_alloc(struct rt_memheap *heap, uint32_t size)
             /* Mark the allocated block as not available. */
             header_ptr->magic = (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED);
 
-            return (void *)((uint8_t *)header_ptr + RT_MEMHEAP_SIZE);
+            return (void *)((unsigned char *)header_ptr + RT_MEMHEAP_SIZE);
         }
     }
 
@@ -284,15 +284,15 @@ void *rt_memheap_alloc(struct rt_memheap *heap, uint32_t size)
  *
  * @return the changed memory block address.
  */
-void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, uint32_t newsize)
+void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, unsigned int newsize)
 {
-    uint32_t oldsize;
+    unsigned int oldsize;
     struct rt_memheap_item *header_ptr;
     struct rt_memheap_item *new_ptr;
 
     if (heap == RT_NULL)
     {
-        error("heap == RT_NULL\r\n");
+        //error("heap == RT_NULL\r\n");
         return RT_NULL;
     }
 
@@ -314,7 +314,7 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, uint32_t newsize)
 
     /* get memory block header and get the size of memory block */
     header_ptr = (struct rt_memheap_item *)
-                 ((uint8_t *)ptr - RT_MEMHEAP_SIZE);
+                 ((unsigned char *)ptr - RT_MEMHEAP_SIZE);
     oldsize = MEMITEM_SIZE(header_ptr);
     /* re-allocate memory */
     if (newsize > oldsize)
@@ -327,7 +327,7 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, uint32_t newsize)
         /* header_ptr should not be the tail */
         if (next_ptr < header_ptr)
         {
-            error("next_ptr < header_ptr\r\n");
+            //error("next_ptr < header_ptr\r\n");
             while(1);
         }
 
@@ -339,7 +339,7 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, uint32_t newsize)
             nextsize = MEMITEM_SIZE(next_ptr);
             if (next_ptr <= 0)
             {
-                error("next_ptr <= 0\r\n");
+                //error("next_ptr <= 0\r\n");
                 while(1);
             }
 
@@ -402,7 +402,7 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, uint32_t newsize)
 
     /* split the block. */
     new_ptr = (struct rt_memheap_item *)
-              (((uint8_t *)header_ptr) + newsize + RT_MEMHEAP_SIZE);
+              (((unsigned char *)header_ptr) + newsize + RT_MEMHEAP_SIZE);
 
     /* mark the new block as a memory block and freed. */
     new_ptr->magic = (RT_MEMHEAP_MAGIC | RT_MEMHEAP_FREED);
@@ -464,7 +464,7 @@ void rt_memheap_free(void *ptr)
     insert_header = RT_TRUE;
     new_ptr       = RT_NULL;
     header_ptr    = (struct rt_memheap_item *)
-                    ((uint8_t *)ptr - RT_MEMHEAP_SIZE);
+                    ((unsigned char *)ptr - RT_MEMHEAP_SIZE);
 
     /* check magic */
     if (header_ptr->magic != (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED) ||
@@ -472,13 +472,13 @@ void rt_memheap_free(void *ptr)
     {
         if (header_ptr->magic != (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED))
         {
-            error("header_ptr->magic != (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED)\r\n");
+            //error("header_ptr->magic != (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED)\r\n");
             while(1);
         }
         /* check whether this block of memory has been over-written. */
         if ((header_ptr->next->magic & RT_MEMHEAP_MASK)!= RT_MEMHEAP_MAGIC)
         {
-            error("(header_ptr->next->magic & RT_MEMHEAP_MASK)!= RT_MEMHEAP_MAGIC\r\n");
+            //error("(header_ptr->next->magic & RT_MEMHEAP_MASK)!= RT_MEMHEAP_MAGIC\r\n");
             while(1);
         }
     }
@@ -489,7 +489,7 @@ void rt_memheap_free(void *ptr)
     // RT_ASSERT(heap);
     if (heap == RT_NULL)
     {
-        error("heap == RT_NULL\r\n");
+        //error("heap == RT_NULL\r\n");
         while(1);
     }
 
@@ -535,10 +535,10 @@ void rt_memheap_free(void *ptr)
     {
         struct rt_memheap_item *n = heap->free_list->next_free;;
 #if defined(RT_MEMHEAP_BSET_MODE)
-        uint32_t blk_size = MEMITEM_SIZE(header_ptr);
+        unsigned int blk_size = MEMITEM_SIZE(header_ptr);
         for (;n != heap->free_list; n = n->next_free)
         {
-            uint32_t m = MEMITEM_SIZE(n);
+            unsigned int m = MEMITEM_SIZE(n);
             if (blk_size <= m)
             {
                 break;
@@ -567,9 +567,9 @@ void rt_memheap_free(void *ptr)
 * @param max_used is a pointer to get the maximum memory used.
 */
 void rt_memheap_info(struct rt_memheap *heap,
-                     uint32_t *total,
-                     uint32_t *used,
-                     uint32_t *max_used)
+                     unsigned int *total,
+                     unsigned int *used,
+                     unsigned int *max_used)
 {
     if (total != RT_NULL)
         *total = heap->pool_size;

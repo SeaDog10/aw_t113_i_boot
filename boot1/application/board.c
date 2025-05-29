@@ -1,10 +1,7 @@
 #include "mmu.h"
 
-struct mem_desc platform_mem_desc[] = {
-    // {0x00000000, 0xFFFFFFFF, 0x00000000, DEVICE_MEM},
-    // {0x00000000, 0x000FFFFF, 0x00000000, DEVICE_MEM},
-    // {0x40000000, 0x47FFFFFF, 0x40000000, NORMAL_MEM},
-
+struct mem_desc platform_mem_desc[] =
+{
     {0x00000000, 0x00007FFF, 0x00000000, DEVICE_MEM}, /* SRAM A1    */
     {0x02000000, 0x04FFFFFF, 0x02000000, DEVICE_MEM}, /* PERIPHERAL */
     {0x40000000, 0x4FFFFFFF, 0x40000000, NORMAL_MEM}, /* DRAM       */

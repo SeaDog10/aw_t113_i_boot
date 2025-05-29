@@ -43,7 +43,6 @@ unsigned int interrupt_get_priority_mask(void);
 int interrupt_set_prior_group_bits(unsigned int bits);
 unsigned int interrupt_get_prior_group_bits(void);
 
-isr_handler_t interrupt_install(int vector, isr_handler_t handler,
-                                void *param, const char *name);
+isr_handler_t interrupt_install(int vector, isr_handler_t handler, void *param);
 
 #endif

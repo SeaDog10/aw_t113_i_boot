@@ -3,65 +3,65 @@
 #include "gic.h"
 #include "drv_uart.h"
 
-extern sunxi_usart_t usart0_dbg;
+extern struct uart_handle uart0;
 
 void trap_undef(struct exp_stack *regs)
 {
-    sunxi_usart_putc(&usart0_dbg, 'u');
-    sunxi_usart_putc(&usart0_dbg, 'd');
-    sunxi_usart_putc(&usart0_dbg, 'f');
-    sunxi_usart_putc(&usart0_dbg, '\r');
-    sunxi_usart_putc(&usart0_dbg, '\n');
+    uart_putc(&uart0, 'u');
+    uart_putc(&uart0, 'd');
+    uart_putc(&uart0, 'f');
+    uart_putc(&uart0, '\r');
+    uart_putc(&uart0, '\n');
     while (1);
 }
 
 void trap_swi(struct exp_stack *regs)
 {
-    sunxi_usart_putc(&usart0_dbg, 's');
-    sunxi_usart_putc(&usart0_dbg, 'w');
-    sunxi_usart_putc(&usart0_dbg, 'i');
-    sunxi_usart_putc(&usart0_dbg, '\r');
-    sunxi_usart_putc(&usart0_dbg, '\n');
+    uart_putc(&uart0, 's');
+    uart_putc(&uart0, 'w');
+    uart_putc(&uart0, 'i');
+    uart_putc(&uart0, '\r');
+    uart_putc(&uart0, '\n');
     while (1);
 }
 
 void trap_pabt(struct exp_stack *regs)
 {
-    sunxi_usart_putc(&usart0_dbg, 'p');
-    sunxi_usart_putc(&usart0_dbg, 'a');
-    sunxi_usart_putc(&usart0_dbg, 'b');
-    sunxi_usart_putc(&usart0_dbg, '\r');
-    sunxi_usart_putc(&usart0_dbg, '\n');
+    uart_putc(&uart0, 'p');
+    uart_putc(&uart0, 'a');
+    uart_putc(&uart0, 'b');
+    uart_putc(&uart0, '\r');
+    uart_putc(&uart0, '\n');
     while (1);
 }
 
 void trap_dabt(struct exp_stack *regs)
 {
-    sunxi_usart_putc(&usart0_dbg, 'd');
-    sunxi_usart_putc(&usart0_dbg, 'a');
-    sunxi_usart_putc(&usart0_dbg, 'b');
-    sunxi_usart_putc(&usart0_dbg, '\r');
-    sunxi_usart_putc(&usart0_dbg, '\n');
+    uart_putc(&uart0, 'd');
+    uart_putc(&uart0, 'a');
+    uart_putc(&uart0, 'b');
+    uart_putc(&uart0, '\r');
+    uart_putc(&uart0, '\n');
     while (1);
 }
 
 void trap_resv(struct exp_stack *regs)
 {
-    sunxi_usart_putc(&usart0_dbg, 'r');
-    sunxi_usart_putc(&usart0_dbg, 'e');
-    sunxi_usart_putc(&usart0_dbg, 'v');
-    sunxi_usart_putc(&usart0_dbg, '\r');
-    sunxi_usart_putc(&usart0_dbg, '\n');
+    uart_putc(&uart0, 'r');
+    uart_putc(&uart0, 'e');
+    uart_putc(&uart0, 'v');
+    uart_putc(&uart0, '\r');
+    uart_putc(&uart0, '\n');
     while (1);
 }
 
 void trap_fiq(void)
 {
-    sunxi_usart_putc(&usart0_dbg, 'f');
-    sunxi_usart_putc(&usart0_dbg, 'i');
-    sunxi_usart_putc(&usart0_dbg, 'q');
-    sunxi_usart_putc(&usart0_dbg, '\r');
-    sunxi_usart_putc(&usart0_dbg, '\n');
+    uart_putc(&uart0, 'f');
+    uart_putc(&uart0, 'i');
+    uart_putc(&uart0, 'q');
+    uart_putc(&uart0, '\r');
+    uart_putc(&uart0, '\n');
     while (1);
 }
 

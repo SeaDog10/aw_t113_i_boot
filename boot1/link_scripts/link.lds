@@ -4,7 +4,8 @@ OUTPUT_ARCH(arm)
 /* Memory Spaces Definitions */
 MEMORY
 {
-   ram   (rwx) : ORIGIN = 0x40000000, LENGTH = 0x100000
+   ram   (rwx) : ORIGIN = 0x40000000, LENGTH = 0xE7000
+   heap  (rw)  : ORIGIN = 0x400E7000, LENGTH = 0x19000
 }
 
 SECTIONS
@@ -59,6 +60,14 @@ SECTIONS
         . = ALIGN(4);
         __bss_end = .;
     } > ram
+
+    .memheap :
+    {
+        __memheap_start = .;
+        . = ALIGN(8);
+    } > heap
+
+   PROVIDE(__memheap_end = ORIGIN(heap) + LENGTH(heap));
 
     . = ALIGN(4);
     _end = .;

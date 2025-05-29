@@ -51,7 +51,8 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/application
     ${CMAKE_SOURCE_DIR}/boards
     ${CMAKE_SOURCE_DIR}/libcpu
-    # ${CMAKE_SOURCE_DIR}/memheap
+    ${CMAKE_SOURCE_DIR}/shell
+    ${CMAKE_SOURCE_DIR}/memheap
     # ${CMAKE_SOURCE_DIR}/partition
 )
 
@@ -61,7 +62,8 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/boards/*.c"
     "${CMAKE_SOURCE_DIR}/libcpu/*.c"
     "${CMAKE_SOURCE_DIR}/libcpu/*.S"
-    # "${CMAKE_SOURCE_DIR}/memheap/*.c"
+    "${CMAKE_SOURCE_DIR}/shell/*.c"
+    "${CMAKE_SOURCE_DIR}/memheap/*.c"
     # "${CMAKE_SOURCE_DIR}/partition/*.c"
 )
 
