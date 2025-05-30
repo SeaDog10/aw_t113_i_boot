@@ -46,22 +46,21 @@ static char shell_uart_getc(void *arg)
     return uart_getc(uart);
 }
 
-int main(void)
+static int memfree(int argc, char **argv);
+static struct shell_command free_cmd =
+{
+    .name = "memfree",
+    .desc = "show memheap info",
+    .func = memfree,
+    .next = SHELL_NULL,
+};
+
+static int memfree(int argc, char **argv)
 {
     int ret = 0;
     unsigned int total   = 0;
     unsigned int used    = 0;
     unsigned int maxused = 0;
-
-    interrupt_disable();
-    interrupt_init();
-    interrupt_enable();
-
-    uart_init(&uart0);
-
-    shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0);
-
-    s_printf("hello world\r\n");
 
     s_printf("__memheap_start : 0x%08x, __memheap_end : 0x%08x\r\n", (unsigned int)HEAP_BEGIN, (unsigned int)HEAP_END);
     ret = rt_memheap_init(&system_heap, HEAP_BEGIN, HEAP_SIZE);
@@ -75,8 +74,27 @@ int main(void)
         s_printf("memheap init success, total: 0x%08x, used: 0x%08x, maxused: 0x%08x\r\n", total, used, maxused);
     }
 
+    return 0;
+}
+
+int main(void)
+{
+    interrupt_disable();
+    interrupt_init();
+    interrupt_enable();
+
+    uart_init(&uart0);
+
+    shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0);
+
+    shell_register_command(&free_cmd);
+
+    s_printf("hello world\r\n");
+
     while(1)
     {
         shell_servise();
     }
 }
+
+

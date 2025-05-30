@@ -1,5 +1,4 @@
 #include "shell.h"
-#include "xstring.h"
 
 struct shell_input
 {
@@ -23,7 +22,13 @@ enum input_state
     STATE_BRACKET_RECEIVED = 2,
 };
 
-static struct shell_command *shell_cmd_list = SHELL_NULL;
+static struct shell_command shell_cmd_list =
+{
+    .name = SHELL_NULL,
+    .desc = SHELL_NULL,
+    .func = SHELL_NULL,
+    .next = SHELL_NULL,
+};
 
 static struct shell_input   shell_in  = {0};
 static struct shell_history shell_his = {0};
@@ -32,6 +37,12 @@ static void (*outputchar)(void *, char) = SHELL_NULL;
 static char (*inputchar)(void *) = SHELL_NULL;
 static void *outputchar_arg = SHELL_NULL;
 static void *inputchar_arg = SHELL_NULL;
+
+/* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
+static int echo(int argc, char **argv);
+static int help(int argc, char **argv);
+static int hexdump(int argc, char **argv);
+/* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 static void show_prompt(void)
 {
@@ -201,7 +212,7 @@ static void shell_handle_command(const char *input_buffer)
     char buf[CMD_BUF_SIZE] = {0};
     char *argv[CMD_MAX_ARGV] = {0};
     int argc = 0;
-    struct shell_command *cmd = shell_cmd_list;
+    struct shell_command *cmd = &shell_cmd_list;
 
     if (input_buffer == SHELL_NULL || *input_buffer == '\0')
     {
@@ -217,14 +228,18 @@ static void shell_handle_command(const char *input_buffer)
         return;
     }
 
-    while (cmd)
+    if (cmd->next)
     {
-        if (xstrcmp(argv[0], cmd->name) == 0)
-        {
-            cmd->func(argc, argv);
-            return;
-        }
         cmd = cmd->next;
+        while (cmd)
+        {
+            if (xstrcmp(argv[0], cmd->name) == 0)
+            {
+                cmd->func(argc, argv);
+                return;
+            }
+            cmd = cmd->next;
+        }
     }
 
     show_unknown_cmd(argv[0]);
@@ -233,6 +248,13 @@ static void shell_handle_command(const char *input_buffer)
 static void console_input_char(struct shell_input *input, struct shell_history *history, char ch)
 {
     static enum input_state state = STATE_NORMAL;
+    struct shell_command *cmd_list = SHELL_NULL;
+    struct shell_command *matched_cmd = SHELL_NULL;
+    char *prefix = SHELL_NULL;
+    int prefix_len = 0;
+    int match_count = 0;
+    int remaining = 0;
+    int i = 0;
 
     if (state == STATE_NORMAL)
     {
@@ -260,6 +282,79 @@ static void console_input_char(struct shell_input *input, struct shell_history *
             input->length = 0;
             history->current = history->count;
             show_prompt();
+            return;
+        }
+
+        if (ch == '\t')
+        {
+            prefix = input->buffer;
+            prefix_len = input->length;
+            cmd_list = &shell_cmd_list;
+            match_count = 0;
+
+            input->buffer[input->length] = '\0';
+
+            if (prefix_len == 0)
+            {
+                help(0, SHELL_NULL);
+                show_prompt();
+                redraw_input(input);
+                return;
+            }
+
+            if (cmd_list)
+            {
+                cmd_list = cmd_list->next;
+
+                while (cmd_list)
+                {
+                    if (xstrncmp(cmd_list->name, prefix, prefix_len) == 0)
+                    {
+                        match_count++;
+                        if (match_count == 1)
+                        {
+                            matched_cmd = cmd_list;
+                        }
+                    }
+                    cmd_list = cmd_list->next;
+                }
+            }
+
+            if (match_count == 1)
+            {
+                remaining = xstrlen(matched_cmd->name) - prefix_len;
+                if (input->length + remaining >= CMD_BUF_SIZE)
+                {
+                    return;
+                }
+                for (i = 0; i < remaining; i++)
+                {
+                    input->buffer[input->pos + i] = matched_cmd->name[prefix_len + i];
+                }
+                input->length += remaining;
+                input->pos += remaining;
+                input->buffer[input->length] = '\0';
+                redraw_input(input);
+            }
+            else if (match_count > 1)
+            {
+                s_printf("\r\n");
+                cmd_list = shell_cmd_list.next;
+
+                while (cmd_list)
+                {
+                    if (xstrncmp(cmd_list->name, prefix, prefix_len) == 0)
+                    {
+                        s_printf("%s\r\n", cmd_list->name);
+                    }
+                    cmd_list = cmd_list->next;
+                }
+
+                s_printf("\r\n");
+                show_prompt();
+                redraw_input(input);
+            }
+
             return;
         }
 
@@ -331,7 +426,8 @@ static void console_input_char(struct shell_input *input, struct shell_history *
     }
 }
 
-SHELL_CMD_EXPORT(echo, "Echo parameters")
+/* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
+static int echo(int argc, char **argv)
 {
     for (int i = 1; i < argc; i++)
     {
@@ -340,23 +436,117 @@ SHELL_CMD_EXPORT(echo, "Echo parameters")
     s_printf("\r\n");
     return 0;
 }
-
-SHELL_CMD_EXPORT(help, "List all commands")
+static struct shell_command echo_cmd =
 {
-    struct shell_command *cmd = shell_cmd_list;
-    s_printf("shell commads:\r\n");
-    while (cmd)
+    .name = "echo",
+    .desc = "show parameters",
+    .func = echo,
+    .next = SHELL_NULL,
+};
+
+static int help(int argc, char **argv)
+{
+    struct shell_command *cmd = &shell_cmd_list;
+
+    if (cmd->next)
     {
-        s_printf("%-12s : %s\r\n", cmd->name, cmd->desc);
         cmd = cmd->next;
+        s_printf("shell commads:\r\n");
+        while (cmd)
+        {
+            s_printf("%-12s : %s\r\n", cmd->name, cmd->desc);
+            cmd = cmd->next;
+        }
     }
+    else
+    {
+        s_printf("no shell commads\r\n");
+    }
+
     return 0;
 }
+static struct shell_command help_cmd =
+{
+    .name = "help",
+    .desc = "show help",
+    .func = help,
+    .next = SHELL_NULL,
+};
+
+static int hexdump(int argc, char **argv)
+{
+    unsigned int start_base = 0;
+    unsigned int len = 0;
+    unsigned int i = 0, j=  0;
+    unsigned char val = 0;
+    char ascii_buf[17] = {0};
+
+    if (argc < 3)
+    {
+        s_printf("Usage: hexdump <addr> <len>\r\n");
+        return -1;
+    }
+
+    if (xstrtol(argv[1], (int *)&start_base) != 0)
+    {
+        s_printf("Invalid address: %s\r\n", argv[1]);
+        return -2;
+    }
+
+    if (xstrtol(argv[2], (int *)&len) != 0)
+    {
+        s_printf("Invalid length: %s\r\n", argv[2]);
+        return -3;
+    }
+
+    s_printf("Dump 0x%p %dBytes\r\n", start_base, len);
+    s_printf("Offset      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\r\n");
+
+    for (i = 0; i < len; i += 16)
+    {
+        s_printf("0x%08X  ", start_base + i);
+
+        for (j = 0; j < 16; j++)
+        {
+            if (i + j < len)
+            {
+                val = *((unsigned char *)(start_base + i + j));
+                s_printf("%02X ", val);
+                ascii_buf[j] = (val >= 32 && val <= 126) ? val : '.';
+            }
+            else
+            {
+                s_printf("   ");
+                ascii_buf[j] = ' ';
+            }
+        }
+
+        s_printf(" %s\r\n", ascii_buf);
+    }
+
+    return 0;
+}
+static struct shell_command hexdump_cmd =
+{
+    .name = "hexdump",
+    .desc = "show mem info",
+    .func = hexdump,
+    .next = SHELL_NULL,
+};
+/* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 void shell_register_command(struct shell_command *cmd)
 {
-    cmd->next = shell_cmd_list;
-    shell_cmd_list = cmd;
+    struct shell_command *node = &shell_cmd_list;
+
+    while (node->next)
+    {
+        node = node->next;
+    }
+
+    /* append the node to the tail */
+    node->next = cmd;
+    cmd->next = SHELL_NULL;
 }
 
 void s_printf(const char *fmt, ...)
@@ -386,6 +576,12 @@ int shell_init(void (*outchar_func)(void *, char), void *outarg,
     inputchar_arg = inarg;
 
     show_prompt();
+
+/* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
+    shell_register_command(&help_cmd);
+    shell_register_command(&echo_cmd);
+    shell_register_command(&hexdump_cmd);
+/* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
 
     return 0;
 }

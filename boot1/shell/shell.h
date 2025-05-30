@@ -2,24 +2,13 @@
 #define __SHELL_H__
 
 #include "xformat.h"
+#include "xstring.h"
 
 #define SHELL_NULL 0
 
 #define CMD_BUF_SIZE        128
 #define CMD_HISTORY_DEPTH   5
 #define CMD_MAX_ARGV        10
-
-#define SHELL_CMD_EXPORT(name, desc)                                \
-    static int name##_handler(int argc, char **argv);               \
-    static struct shell_command name##_cmd = {                      \
-        #name, desc, name##_handler, 0                              \
-    };                                                              \
-    __attribute__((constructor))                                    \
-    static void shell_register_##name(void)                         \
-    {                                                               \
-        shell_register_command(&name##_cmd);                        \
-    }                                                               \
-    static int name##_handler(int argc, char **argv)
 
 typedef int (*shell_cmd_func_t)(int argc, char **argv);
 

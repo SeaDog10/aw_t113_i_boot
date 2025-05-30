@@ -203,3 +203,66 @@ void *xmemmove(void *dst, const void *src, unsigned int cnt)
 
     return dst;
 }
+
+int xstrtol(const char *str, int *out)
+{
+    int base = 10;
+    int result = 0;
+    int sign = 1;
+    char c = 0;
+    int digit = 0;
+
+    while (*str == ' ' || *str == '\t')
+    {
+        str++;
+    }
+
+    if (*str == '-')
+    {
+        sign = -1;
+        str++;
+    }
+    else if (*str == '+')
+    {
+        str++;
+    }
+
+    if (*str == '0' && (*(str + 1) == 'x' || *(str + 1) == 'X'))
+    {
+        base = 16;
+        str += 2;
+    }
+
+    while (*str)
+    {
+        c = *str++;
+
+        if (c >= '0' && c <= '9')
+        {
+            digit = c - '0';
+        }
+        else if (c >= 'a' && c <= 'f')
+        {
+            digit = 10 + (c - 'a');
+        }
+        else if (c >= 'A' && c <= 'F')
+        {
+            digit = 10 + (c - 'A');
+        }
+        else
+        {
+            return -2;
+        }
+
+        if (digit >= base)
+        {
+            return -3;
+        }
+
+        result = result * base + digit;
+    }
+
+    *out = result * sign;
+
+    return 0;
+}

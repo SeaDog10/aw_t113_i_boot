@@ -15,5 +15,6 @@ char *xstrchr(const char *s, int c);
 char *xstrstr(const char *s1, const char *s2);
 void *xmemchr(void *src, int val, unsigned int cnt);
 void *xmemmove(void *dst, const void *src, unsigned int cnt);
+int xstrtol(const char *str, int *out);
 
 #endif
