@@ -22,6 +22,15 @@ enum input_state
     STATE_BRACKET_RECEIVED = 2,
 };
 
+enum redraw
+{
+    MODE_NORMALL    = 0,
+    MODE_BACK       = 1,
+    MODE_REAMAIN    = 2,
+    MODE_UP         = 3,
+    MODE_DOWN       = 4,
+};
+
 static struct shell_command shell_cmd_list =
 {
     .name = SHELL_NULL,
@@ -30,13 +39,13 @@ static struct shell_command shell_cmd_list =
     .next = SHELL_NULL,
 };
 
-static struct shell_input   shell_in  = {0};
-static struct shell_history shell_his = {0};
+static struct shell_input   shell_in    = {0};
+static struct shell_history shell_his   = {0};
 
 static void (*outputchar)(void *, char) = SHELL_NULL;
-static char (*inputchar)(void *) = SHELL_NULL;
-static void *outputchar_arg = SHELL_NULL;
-static void *inputchar_arg = SHELL_NULL;
+static char (*inputchar)(void *)        = SHELL_NULL;
+static void *outputchar_arg             = SHELL_NULL;
+static void *inputchar_arg              = SHELL_NULL;
 
 /* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
 static int echo(int argc, char **argv);
@@ -46,7 +55,13 @@ static int hexdump(int argc, char **argv);
 
 static void show_prompt(void)
 {
-    outputchar(outputchar_arg, '>');
+    int i = 0;
+    char *str = SHELL_PROMPT;
+
+    for (i = 0; i < SHEEL_PROMPT_SIZE; i++)
+    {
+        outputchar(outputchar_arg, str[i]);
+    }
 }
 
 static void show_unknown_cmd(char *arg)
@@ -67,28 +82,68 @@ static void show_unknown_cmd(char *arg)
     outputchar(outputchar_arg, '\n');
 }
 
-static void redraw_input(struct shell_input *input)
+static void redraw_input(struct shell_input *input, enum redraw mode)
 {
     int i = 0;
-    int back = 0;
 
-    outputchar(outputchar_arg, '\r');
-    outputchar(outputchar_arg, '>');
-
-    for (i = 0; i < input->length; i++)
+    switch (mode)
     {
-        outputchar(outputchar_arg, input->buffer[i]);
-    }
+    case MODE_NORMALL:
+        {
+            if (input->pos > 0)
+            {
+                for (i = input->pos - 1; i < input->length; i++)
+                {
+                    outputchar(outputchar_arg, input->buffer[i]);
+                }
+            }
+        }
+        break;
+    case MODE_BACK:
+        {
+            if (input->length > 0)
+            {
+                outputchar(outputchar_arg, '\b');
+                for (i = input->pos; i < input->length + 1; i++)
+                {
+                    outputchar(outputchar_arg, input->buffer[i]);
+                }
+                outputchar(outputchar_arg, ' ');
+                outputchar(outputchar_arg, '\b');
 
-    outputchar(outputchar_arg, ' ');
-    outputchar(outputchar_arg, '\b');
+                for (i = 0; i < input->length - input->pos; i++)
+                {
+                    outputchar(outputchar_arg, '\b');
+                }
+            }
+        }
+        break;
+    case MODE_REAMAIN:
+        {
+            outputchar(outputchar_arg, '\r');
+            outputchar(outputchar_arg, '\n');
+            show_prompt();
 
-    back = input->length - input->pos;
-    while (back--)
-    {
-        outputchar(outputchar_arg, 0x1b);
-        outputchar(outputchar_arg, '[');
-        outputchar(outputchar_arg, 'D');
+            for (i = 0; i < input->length; i++)
+            {
+                outputchar(outputchar_arg, input->buffer[i]);
+            }
+        }
+        break;
+    case MODE_UP:
+    case MODE_DOWN:
+        {
+            outputchar(outputchar_arg, '\r');
+            show_prompt();
+
+            for (i = 0; i < input->length; i++)
+            {
+                outputchar(outputchar_arg, input->buffer[i]);
+            }
+        }
+        break;
+    default:
+        break;
     }
 }
 
@@ -131,48 +186,68 @@ static void browse_history_up(struct shell_history *history, struct shell_input 
         return;
     }
 
+    for(i = 0; i < input->length; i++)
+    {
+        outputchar(outputchar_arg, '\b');
+    }
+
     history->current--;
     xstrcpy(input->buffer, history->history[history->current]);
     input->length = xstrlen(input->buffer);
     input->pos = input->length;
+
     if (input->length < history->max_len)
     {
-        outputchar(outputchar_arg, '\r');
-        for (i = 0; i < history->max_len + 1; i++)
+        for(i = 0; i < (history->max_len + SHEEL_PROMPT_SIZE) * 2; i++)
         {
-            outputchar(outputchar_arg, ' ');
+            if(i < (history->max_len + SHEEL_PROMPT_SIZE))
+            {
+                outputchar(outputchar_arg, ' ');
+            }
+            else
+            {
+                outputchar(outputchar_arg, '\b');
+            }
         }
     }
-    redraw_input(input);
+    redraw_input(input, MODE_UP);
 }
 
 static void browse_history_down(struct shell_history *history, struct shell_input *input)
 {
     int i = 0;
 
-    if (history->current + 1 >= history->count)
+    if (history->count == 0 || (history->current + 1 >= history->count))
     {
-        input->length = input->pos = 0;
-        input->buffer[0] = '\0';
+        return;
     }
-    else
+
+    for(i = 0; i < input->length; i++)
     {
-        history->current++;
-        xstrcpy(input->buffer, history->history[history->current]);
-        input->length = xstrlen(input->buffer);
-        input->pos = input->length;
+        outputchar(outputchar_arg, '\b');
     }
+
+    history->current++;
+    xstrcpy(input->buffer, history->history[history->current]);
+    input->length = xstrlen(input->buffer);
+    input->pos = input->length;
 
     if (input->length < history->max_len)
     {
-        outputchar(outputchar_arg, '\r');
-        for (i = 0; i < history->max_len + 1; i++)
+        for(i = 0; i < (history->max_len + SHEEL_PROMPT_SIZE) * 2; i++)
         {
-            outputchar(outputchar_arg, ' ');
+            if(i < (history->max_len + SHEEL_PROMPT_SIZE))
+            {
+                outputchar(outputchar_arg, ' ');
+            }
+            else
+            {
+                outputchar(outputchar_arg, '\b');
+            }
         }
     }
 
-    redraw_input(input);
+    redraw_input(input, MODE_DOWN);
 }
 
 static int shell_parse_args(char *cmdline, char *argv[], int max_args)
@@ -271,16 +346,12 @@ static void console_input_char(struct shell_input *input, struct shell_history *
             input->buffer[input->length] = '\0';
             if (input->length > 0)
             {
-                if (input->length > history->max_len)
-                {
-                    history->max_len = input->length;
-                }
                 save_to_history(history, input->buffer);
                 shell_handle_command(input->buffer);
             }
+
             input->pos    = 0;
             input->length = 0;
-            history->current = history->count;
             show_prompt();
             return;
         }
@@ -296,9 +367,10 @@ static void console_input_char(struct shell_input *input, struct shell_history *
 
             if (prefix_len == 0)
             {
+                outputchar(outputchar_arg, '\r');
+                outputchar(outputchar_arg, '\n');
                 help(0, SHELL_NULL);
                 show_prompt();
-                redraw_input(input);
                 return;
             }
 
@@ -334,25 +406,29 @@ static void console_input_char(struct shell_input *input, struct shell_history *
                 input->length += remaining;
                 input->pos += remaining;
                 input->buffer[input->length] = '\0';
-                redraw_input(input);
+                redraw_input(input, MODE_REAMAIN);
             }
             else if (match_count > 1)
             {
-                s_printf("\r\n");
+                outputchar(outputchar_arg, '\r');
+                outputchar(outputchar_arg, '\n');
                 cmd_list = shell_cmd_list.next;
 
                 while (cmd_list)
                 {
                     if (xstrncmp(cmd_list->name, prefix, prefix_len) == 0)
                     {
-                        s_printf("%s\r\n", cmd_list->name);
+                        for (i = 0; cmd_list->name[i] != '\0'; i++)
+                        {
+                            outputchar(outputchar_arg, cmd_list->name[i]);
+                        }
+                        outputchar(outputchar_arg, '\r');
+                        outputchar(outputchar_arg, '\n');
                     }
                     cmd_list = cmd_list->next;
                 }
 
-                s_printf("\r\n");
-                show_prompt();
-                redraw_input(input);
+                redraw_input(input, MODE_REAMAIN);
             }
 
             return;
@@ -362,10 +438,10 @@ static void console_input_char(struct shell_input *input, struct shell_history *
         {
             if (input->pos > 0)
             {
-                xmemmove(&input->buffer[input->pos - 1], &input->buffer[input->pos], input->length - input->pos);
+                xmemmove(&input->buffer[input->pos - 1], &input->buffer[input->pos], input->length - input->pos + 1);
                 input->pos--;
                 input->length--;
-                redraw_input(input);
+                redraw_input(input, MODE_BACK);
             }
             return;
         }
@@ -377,7 +453,11 @@ static void console_input_char(struct shell_input *input, struct shell_history *
 
             input->buffer[input->pos++] = ch;
             input->length++;
-            redraw_input(input);
+            if (input->length > history->max_len)
+            {
+                history->max_len = input->length;
+            }
+            redraw_input(input, MODE_NORMALL);
         }
     }
     else if (state == STATE_ESC_RECEIVED)
@@ -563,17 +643,27 @@ void s_printf(const char *fmt, ...)
 }
 
 int shell_init(void (*outchar_func)(void *, char), void *outarg,
-    char (*inputchar_func)(void *), void *inarg)
+    char (*inputchar_func)(void *), void *inarg, const char *sheel_headtag)
 {
+    int i = 0;
+
     if (outchar_func == SHELL_NULL || inputchar_func == SHELL_NULL)
     {
         return -1;
     }
 
-    outputchar = outchar_func;
-    outputchar_arg = outarg;
-    inputchar = inputchar_func;
-    inputchar_arg = inarg;
+    outputchar      = outchar_func;
+    outputchar_arg  = outarg;
+    inputchar       = inputchar_func;
+    inputchar_arg   = inarg;
+
+    if(sheel_headtag)
+    {
+        for (i = 0; sheel_headtag[i] != '\0'; i++)
+        {
+            outchar_func(outarg, sheel_headtag[i]);
+        }
+    }
 
     show_prompt();
 

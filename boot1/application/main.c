@@ -32,6 +32,16 @@ struct uart_handle uart0 = {
     },
 };
 
+const char *start_logo =
+"                                                     \r\n\
+  _    _  _____        ____   ____   ____ _______     \r\n\
+ | |  | |/ ____|      |  _ \\ / __ \\ / __ \\__   __| \r\n\
+ | |__| | |  __ ______| |_) | |  | | |  | | | |       \r\n\
+ |  __  | | |_ |______|  _ <| |  | | |  | | | |       \r\n\
+ | |  | | |__| |      | |_) | |__| | |__| | | |       \r\n\
+ |_|  |_|\\_____|      |____/ \\____/ \\____/  |_|    \r\n\
+ version:V0.0.1\r\n";
+
 static void shell_uart_putc(void *arg, char c)
 {
     struct uart_handle *uart = (struct uart_handle *)arg;
@@ -46,7 +56,21 @@ static char shell_uart_getc(void *arg)
     return uart_getc(uart);
 }
 
-static int memfree(int argc, char **argv);
+static int memfree(int argc, char **argv)
+{
+    unsigned int total   = 0;
+    unsigned int used    = 0;
+    unsigned int maxused = 0;
+
+    rt_memheap_info(&system_heap, &total, &used, &maxused);
+
+    s_printf("memheap info:\r\n");
+    s_printf("__memheap_start : 0x%08x\r\n__memheap_end   : 0x%08x\r\n", (unsigned int)HEAP_BEGIN, (unsigned int)HEAP_END);
+    s_printf("total  : 0x%08x\r\nused   : 0x%08x\r\nmaxused: 0x%08x\r\n", total, used, maxused);
+
+    return 0;
+}
+
 static struct shell_command free_cmd =
 {
     .name = "memfree",
@@ -55,41 +79,25 @@ static struct shell_command free_cmd =
     .next = SHELL_NULL,
 };
 
-static int memfree(int argc, char **argv)
-{
-    int ret = 0;
-    unsigned int total   = 0;
-    unsigned int used    = 0;
-    unsigned int maxused = 0;
-
-    s_printf("__memheap_start : 0x%08x, __memheap_end : 0x%08x\r\n", (unsigned int)HEAP_BEGIN, (unsigned int)HEAP_END);
-    ret = rt_memheap_init(&system_heap, HEAP_BEGIN, HEAP_SIZE);
-    if (ret != 0)
-    {
-        s_printf("memheap init failed\r\n");
-    }
-    else
-    {
-        rt_memheap_info(&system_heap, &total, &used, &maxused);
-        s_printf("memheap init success, total: 0x%08x, used: 0x%08x, maxused: 0x%08x\r\n", total, used, maxused);
-    }
-
-    return 0;
-}
-
 int main(void)
 {
+    int ret = 0;
+
     interrupt_disable();
     interrupt_init();
     interrupt_enable();
 
     uart_init(&uart0);
 
-    shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0);
+    shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0, start_logo);
+
+    ret = rt_memheap_init(&system_heap, HEAP_BEGIN, HEAP_SIZE);
+    if (ret != 0)
+    {
+        s_printf("memheap init failed\r\n");
+    }
 
     shell_register_command(&free_cmd);
-
-    s_printf("hello world\r\n");
 
     while(1)
     {
