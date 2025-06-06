@@ -5,8 +5,8 @@
 #include "xstring.h"
 
 #define SHELL_NULL          0
-#define SHEEL_PROMPT_SIZE   6
-#define SHELL_PROMPT        "shell>"
+#define SHEEL_PROMPT_SIZE   8
+#define SHELL_PROMPT        "shell />"
 
 #define CMD_HISTORY_DEPTH   5
 #define CMD_BUF_SIZE        128
