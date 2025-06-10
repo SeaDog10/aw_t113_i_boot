@@ -1,7 +1,6 @@
 #include "drv_uart.h"
+#include "drv_clk.h"
 #include "interrupt.h"
-
-#define UART_SORCE_CLK    24000000
 
 static void (*uart_recv_callback)(void *param) = U_NULL;
 
@@ -10,6 +9,7 @@ static int _uart_init(struct uart_handle *uart)
     unsigned int time_out = 1000;
     unsigned int addr;
     unsigned int val;
+    unsigned int sclk = 0;
 
     if (uart == U_NULL)
     {
@@ -96,8 +96,9 @@ static int _uart_init(struct uart_handle *uart)
     val |= 0x1 << 7;
     write32(addr + REG_UART_LCR, val);
     /* set baud div */
-    write32(addr + REG_UART_DLL, (unsigned int)(UART_SORCE_CLK / (16 * uart->cfg.baud_rate)) & 0xff);
-    write32(addr + REG_UART_DLH, ((unsigned int)(UART_SORCE_CLK / (16 * uart->cfg.baud_rate)) >> 8) & 0xff);
+    sclk = drv_clk_get_apb1_clk();
+    write32(addr + REG_UART_DLL, (unsigned int)(sclk / (16 * uart->cfg.baud_rate)) & 0xff);
+    write32(addr + REG_UART_DLH, ((unsigned int)(sclk / (16 * uart->cfg.baud_rate)) >> 8) & 0xff);
     /* clear DLAB */
     val = read32(addr + REG_UART_LCR);
     val &= ~(0x1 << 7);

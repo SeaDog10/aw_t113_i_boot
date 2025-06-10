@@ -1,8 +1,14 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
-#define read32(addr) (*((volatile unsigned int *)(addr)))
+#define read32(addr)         (*((volatile unsigned int *)(addr)))
 #define write32(addr, value) (*((volatile unsigned int *)(addr)) = (value))
+
+#define read16(addr)         (*((volatile unsigned short *)(addr)))
+#define write16(addr, value) (*((volatile unsigned short *)(addr)) = (value))
+
+#define read8(addr)          (*((volatile unsigned char *)(addr)))
+#define write8(addr, value)  (*((volatile unsigned char *)(addr)) = (value))
 
 #define U_NULL    0
 

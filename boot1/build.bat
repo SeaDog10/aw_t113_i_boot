@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 :: Configuration --------------------------
 set "BUILD_DIR=build"
 set "GENERATOR=Unix Makefiles"
-set "JOBS=1"
+set "JOBS=128"
 set "SCRIPT_DIR=%~dp0"
 
 :: Check for CMakeLists.txt ----------------
