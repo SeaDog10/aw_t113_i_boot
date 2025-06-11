@@ -18,4 +18,10 @@ extern int __memheap_end;
 #define HEAP_END            (&__memheap_end)
 #define HEAP_SIZE           ((unsigned int)HEAP_END - (unsigned int)HEAP_BEGIN)
 
+unsigned long long get_gtimer_count(void);
+unsigned long long get_count_ms(void);
+unsigned long long get_count_us(void);
+void us_delay(unsigned long long us);
+void ms_delay(unsigned long long ms);
+
 #endif /* __BOARD_H__ */

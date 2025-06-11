@@ -93,4 +93,6 @@ int spi_init(struct spi_handle *spi);
 int spi_deinit(struct spi_handle *spi);
 int spi_transfer(struct spi_handle *spi, struct spi_trans_msg *msg);
 
+/* only send no recive */
+int spi_transfer_then_transfer(struct spi_handle *spi, struct spi_trans_msg *msg_first, struct spi_trans_msg *msg_second);
 #endif

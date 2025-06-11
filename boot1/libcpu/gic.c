@@ -397,11 +397,6 @@ int arm_gic_dist_init(unsigned int index, unsigned int dist_base, int irq_start)
     for (i = 0U; i < _gic_max_irq; i += 32U)
         GIC_DIST_ENABLE_CLEAR(dist_base, i) = 0xffffffffU;
 
-#if 0
-    /* All interrupts defaults to IGROUP1(IRQ). */
-    for (i = 0; i < _gic_max_irq; i += 32)
-        GIC_DIST_IGROUP(dist_base, i) = 0xffffffff;
-#endif
     for (i = 0U; i < _gic_max_irq; i += 32U)
         GIC_DIST_IGROUP(dist_base, i) = 0U;
 
@@ -424,55 +419,3 @@ int arm_gic_cpu_init(unsigned int index, unsigned int cpu_base)
 
     return 0;
 }
-
-// void arm_gic_dump_type(unsigned int index)
-// {
-//     unsigned int gic_type;
-
-//     gic_type = GIC_DIST_TYPE(_gic_table[index].dist_hw_base);
-//     rt_kprintf("GICv%d on %p, max IRQs: %d, %s security extension(%08x)\n",
-//                (GIC_DIST_ICPIDR2(_gic_table[index].dist_hw_base) >> 4U) & 0xfUL,
-//                _gic_table[index].dist_hw_base,
-//                _gic_max_irq,
-//                gic_type & (1U << 10U) ? "has" : "no",
-//                gic_type);
-// }
-
-// void arm_gic_dump(unsigned int index)
-// {
-//     unsigned int i, k;
-
-//     k = GIC_CPU_HIGHPRI(_gic_table[index].cpu_hw_base);
-//     rt_kprintf("--- high pending priority: %d(%08x)\n", k, k);
-//     rt_kprintf("--- hw mask ---\n");
-//     for (i = 0U; i < _gic_max_irq / 32U; i++)
-//     {
-//         rt_kprintf("0x%08x, ",
-//                    GIC_DIST_ENABLE_SET(_gic_table[index].dist_hw_base,
-//                                        i * 32U));
-//     }
-//     rt_kprintf("\n--- hw pending ---\n");
-//     for (i = 0U; i < _gic_max_irq / 32U; i++)
-//     {
-//         rt_kprintf("0x%08x, ",
-//                    GIC_DIST_PENDING_SET(_gic_table[index].dist_hw_base,
-//                                         i * 32U));
-//     }
-//     rt_kprintf("\n--- hw active ---\n");
-//     for (i = 0U; i < _gic_max_irq / 32U; i++)
-//     {
-//         rt_kprintf("0x%08x, ",
-//                    GIC_DIST_ACTIVE_SET(_gic_table[index].dist_hw_base,
-//                                        i * 32U));
-//     }
-//     rt_kprintf("\n");
-// }
-
-// long gic_dump(void)
-// {
-//     arm_gic_dump_type(0);
-//     arm_gic_dump(0);
-
-//     return 0;
-// }
-// MSH_CMD_EXPORT(gic_dump, show gic status);

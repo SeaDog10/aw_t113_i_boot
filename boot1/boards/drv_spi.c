@@ -1,7 +1,6 @@
 #include "drv_spi.h"
 #include "drv_clk.h"
 #include "interrupt.h"
-#include "shell.h"
 
 #define SPI_SORCE_CLK    200000000
 
@@ -475,7 +474,7 @@ static int spi_cpu_writeb(unsigned int addr, const unsigned char *buf)
         }
         else
         {
-            write32(addr + REG_SPI_TXD, *(unsigned char *)buf);
+            write8(addr + REG_SPI_TXD, *(unsigned char *)buf);
             break;
         }
     }
@@ -522,8 +521,6 @@ static void spi_irq_handler(int irqno, void *param)
 
     irq_state = spi_get_irq_state(spi->base);
 
-    s_printf("irq_state = 0x%04x\r\n", irq_state);
-
     if ((irq_state & (SPI_TF_UDF | SPI_TF_OVF | SPI_RX_UDF | SPI_RX_OVF)))
     {
         spi->spi_state = SPI_ERROR;
@@ -533,7 +530,6 @@ static void spi_irq_handler(int irqno, void *param)
     if (irq_state & SPI_RX_RDY)
     {
         byte_cnt = spi_get_rxfifo_bytes(spi->base);
-        s_printf("byte_cnt = %d\r\n", byte_cnt);
         for (i = 0; i < byte_cnt; i++)
         {
             if (spi->rx_len > 0)
@@ -659,6 +655,7 @@ int spi_deinit(struct spi_handle *spi)
 
 int spi_transfer(struct spi_handle *spi, struct spi_trans_msg *msg)
 {
+    int ret = 0;
     unsigned int stx_len = 0;
 
     if (spi == U_NULL || msg == U_NULL)
@@ -702,7 +699,96 @@ int spi_transfer(struct spi_handle *spi, struct spi_trans_msg *msg)
 
     while (spi->tx_len)
     {
-        spi_cpu_writeb(spi->base, spi->tx_offset);
+        ret = spi_cpu_writeb(spi->base, spi->tx_offset);
+        if (ret != 0)
+        {
+            spi_disable_irq(spi->base, 0xffff);
+            interrupt_mask(spi->irq);
+            return -1;
+        }
+        spi->tx_len--;
+        spi->tx_offset++;
+    }
+
+    while (spi->spi_state == SPI_BUSY);
+
+    spi_disable_irq(spi->base, 0xffff);
+    interrupt_mask(spi->irq);
+
+    if (spi->spi_state == SPI_ERROR)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+/* only send no recive */
+int spi_transfer_then_transfer(struct spi_handle *spi, struct spi_trans_msg *msg_first, struct spi_trans_msg *msg_second)
+{
+    int ret = 0;
+    unsigned int stx_len = 0;
+
+    if (spi == U_NULL || msg_first == U_NULL || msg_second == U_NULL)
+    {
+        return -1;
+    }
+
+    spi->rx_offset = U_NULL;
+    spi->rx_len    = 0;
+    spi->dummylen  = msg_first->dummylen + msg_second->dummylen;
+
+    /* Configure io mode */
+    spi_disable_dual(spi->base);
+    spi_disable_quad(spi->base);
+
+    /* disable irq */
+    interrupt_mask(spi->irq);
+    spi_disable_irq(spi->base, 0xffff);
+
+    stx_len = msg_first->tx_len + msg_second->tx_len;
+
+    /* Configure SPI TX number and dummy counter */
+    spi_set_bc_tc_stc(spi->base, stx_len, 0, stx_len, spi->dummylen);
+    spi_reset_fifo(spi->base);
+    spi_clear_irq_state(spi->base, 0xffff);
+    spi_enable_irq(spi->base, (1 << 12)); /* TC Interrupt */
+    spi_enable_irq(spi->base, (0xf << 8)); /* Error Interrupt */
+
+    interrupt_umask(spi->irq);
+
+    spi->spi_state = SPI_BUSY;
+
+    spi_start_xfer(spi->base);
+
+    spi->tx_offset = msg_first->tx_buf;
+    spi->tx_len    = msg_first->tx_len;
+
+    while (spi->tx_len)
+    {
+        ret = spi_cpu_writeb(spi->base, spi->tx_offset);
+        if (ret != 0)
+        {
+            spi_disable_irq(spi->base, 0xffff);
+            interrupt_mask(spi->irq);
+            return -1;
+        }
+        spi->tx_len--;
+        spi->tx_offset++;
+    }
+
+    spi->tx_offset = msg_second->tx_buf;
+    spi->tx_len    = msg_second->tx_len;
+
+    while (spi->tx_len)
+    {
+        ret = spi_cpu_writeb(spi->base, spi->tx_offset);
+        if (ret != 0)
+        {
+            spi_disable_irq(spi->base, 0xffff);
+            interrupt_mask(spi->irq);
+            return -1;
+        }
         spi->tx_len--;
         spi->tx_offset++;
     }
