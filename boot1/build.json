@@ -1,0 +1,82 @@
+{
+    "biuld_flags":{
+        "exec_path" : "D:\\toolchain\\gcc-arm-none-eabi-10.3-2021.10-win32\\gcc-arm-none-eabi-10.3-2021.10\\bin\\",
+        "target"    : "t113.elf",
+        "biuld_dir" : ".\\build"
+    },
+    "environment":{
+        "tools"     : "mingw",
+        "AS"        : "arm-none-eabi-gcc",
+        "CC"        : "arm-none-eabi-gcc",
+        "CXX"       : "arm-none-eabi-g++",
+        "AR"        : "arm-none-eabi-ar",
+        "LINK"      : "arm-none-eabi-gcc",
+        "ARFLAGS"   : [
+            "-rc"
+        ],
+        "LINKFLAGS" : [
+            "-mcpu=cortex-a7",
+            "-marm",
+            "-mfpu=vfpv4 -mfloat-abi=soft",
+            "-mno-thumb-interwork",
+            "-mno-unaligned-access",
+            "-Wall",
+            "-Wl,--gc-sections,-Map=./build/t113.map,-cref,-u,system_vectors",
+            "-T ./link_scripts/link.lds"
+        ],
+        "ASFLAGS" : [
+            "-c",
+            "-mcpu=cortex-a7",
+            "-marm",
+            "-mfpu=vfpv4 -mfloat-abi=soft",
+            "-mno-thumb-interwork",
+            "-mno-unaligned-access",
+            "-Wall",
+            "-gdwarf-2"
+        ],
+        "CFLAGS" : [
+            "-mcpu=cortex-a7",
+            "-marm",
+            "-mfpu=vfpv4 -mfloat-abi=soft",
+            "-mno-thumb-interwork",
+            "-mno-unaligned-access",
+            "-Wall",
+            "-O0",
+            "-gdwarf-2"
+        ],
+        "CXXFLAGS" : [
+            "-mcpu=cortex-a7",
+            "-mfpu=vfpv4 -mfloat-abi=soft",
+            "-fno-rtti",
+            "-fno-exceptions"
+        ]
+    },
+    "pre_defines" : [
+        ""
+    ],
+    "post_build": [
+        {
+            "command": "arm-none-eabi-objcopy",
+            "args": [
+                "-O",
+                "binary",
+                ".\\build\\t113.elf",
+                ".\\build\\t113.bin"
+            ]
+        },
+        {
+            "command": "arm-none-eabi-size",
+            "args": [
+                ".\\build\\t113.elf"
+            ]
+        },
+        {
+            "command": "arm-none-eabi-objdump",
+            "args": [
+                ".\\build\\t113.elf",
+                "-S >",
+                ".\\build\\t113.S"
+            ]
+        }
+    ]
+}
