@@ -1,10 +1,13 @@
 #include "interrupt.h"
 #include "cp15.h"
+#include "board.h"
 #include "drv_uart.h"
 #include "drv_iomux.h"
 #include "drv_clk.h"
-#include "drv_spi.h"
-#include "drv_nand.h"
+#include "littlefs_port.h"
+#include "lfs.h"
+#include "partition_port.h"
+#include "partition.h"
 #include "memheap.h"
 #include "shell.h"
 
@@ -92,59 +95,6 @@ struct spi_nand_handle nand =
     },
 };
 
-struct spi_handle spi1 = {
-    .base = SPI1_BASE_ADDR,
-    .irq  = SPI1_IRQ,
-    .id   = SPI1,
-    .cfg  =
-    {
-        .clk_rate = 10000000,
-        .mode     = 0,
-    },
-    .gpio_cs =
-    {
-        .port = IO_PORTD,
-        .pin  = PIN_10,
-        .mux  = IO_PERIPH_MUX4,
-        .pull = IO_PULL_RESERVE,
-    },
-    .gpio_sck =
-    {
-        .port = IO_PORTD,
-        .pin  = PIN_11,
-        .mux  = IO_PERIPH_MUX4,
-        .pull = IO_PULL_RESERVE,
-    },
-    .gpio_mosi =
-    {
-        .port = IO_PORTD,
-        .pin  = PIN_12,
-        .mux  = IO_PERIPH_MUX4,
-        .pull = IO_PULL_RESERVE,
-    },
-    .gpio_miso =
-    {
-        .port = IO_PORTD,
-        .pin  = PIN_13,
-        .mux  = IO_PERIPH_MUX4,
-        .pull = IO_PULL_RESERVE,
-    },
-    .gpio_wp =
-    {
-        .port = IO_PORTD,
-        .pin  = PIN_15,
-        .mux  = IO_PERIPH_MUX4,
-        .pull = IO_PULL_UP,
-    },
-    .gpio_hold =
-    {
-        .port = IO_PORTD,
-        .pin  = PIN_14,
-        .mux  = IO_PERIPH_MUX4,
-        .pull = IO_PULL_UP,
-    }
-};
-
 const char *start_logo =
 "                                                     \r\n\
   _    _  _____        ____   ____   ____ _______     \r\n\
@@ -230,172 +180,63 @@ static struct shell_command clk_cmd =
     .next = SHELL_NULL,
 };
 
-static int spi1_test(int argc, char **argv)
+static lfs_file_t file;
+
+static int lfs_test(int argc, char **argv)
 {
-    int i = 0;
     int ret = 0;
-    unsigned char tx_buf1[4] = {0};
-    unsigned char tx_buf2[4] = {0};
-    struct spi_trans_msg msg1 = {0};
-    struct spi_trans_msg msg2 = {0};
+    char boot_count = 0;
 
-    tx_buf1[0] = 0x0f;
-    tx_buf1[1] = 0x00;
-    tx_buf1[2] = 0x00;
-    tx_buf1[3] = 0x00;
-
-    msg1.tx_buf = &tx_buf1[0];
-    msg1.tx_len = 4;
-    msg1.rx_buf = U_NULL;
-    msg1.rx_len = 0;
-    msg1.dummylen = 0;
-
-    tx_buf2[0] = 1;
-    tx_buf2[1] = 2;
-    tx_buf2[2] = 3;
-    tx_buf2[3] = 4;
-
-    msg2.tx_buf = &tx_buf2[0];
-    msg2.tx_len = 4;
-    msg2.rx_buf = U_NULL;
-    msg2.rx_len = 0;
-    msg2.dummylen = 0;
-
-    ret = spi_transfer_then_transfer(&spi1, &msg1, &msg2);
-    // ret = spi_transfer(&spi1, &msg2);
+    ret = lfs_file_open(&nand_lfs, &file, "boot_count", LFS_O_RDWR | LFS_O_CREAT);
     if (ret != 0)
     {
-        s_printf("spi1 transfer failed\r\n");
+        s_printf("lfs file open failed\r\n");
+        return -1;
     }
     else
     {
-        s_printf("spi1 transfer success\r\n");
+        s_printf("lfs file open success\r\n");
     }
+
+    ret = lfs_file_read(&nand_lfs, &file, &boot_count, 1);
+    s_printf("lfs file read %d\r\n", ret);
+
+    boot_count++;
+
+    ret = lfs_file_rewind(&nand_lfs, &file);
+    if (ret != 0)
+    {
+        s_printf("lfs file rewind failed\r\n");
+        return -1;
+    }
+    else
+    {
+        s_printf("lfs file rewind success\r\n");
+    }
+
+    ret = lfs_file_write(&nand_lfs, &file, &boot_count, 1);
+    s_printf("lfs file write %d\r\n", ret);
+
+    ret = lfs_file_close(&nand_lfs, &file);
+    if (ret != 0)
+    {
+        s_printf("lfs file close failed\r\n");
+        return -1;
+    }
+    else
+    {
+        s_printf("lfs file close success\r\n");
+    }
+
+    s_printf("boot_count: %d\n", boot_count);
 
     return 0;
 }
-
-static struct shell_command spi1_test_cmd =
+static struct shell_command lfs_cmd =
 {
-    .name = "spi1_test",
-    .desc = "spi1 test",
-    .func = spi1_test,
-    .next = SHELL_NULL,
-};
-
-unsigned char read_buffer[2048] = {0};
-unsigned char write_buffer[2048] = {0};
-
-#define TEST_PAGE 2048
-
-static void dump_page(void *buffer, unsigned int len)
-{
-    unsigned int start_base = buffer;
-    unsigned int i = 0, j=  0;
-    unsigned char val = 0;
-    char ascii_buf[17] = {0};
-
-    s_printf("Dump 0x%p %dBytes\r\n", start_base, len);
-    s_printf("Offset      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\r\n");
-
-    for (i = 0; i < len; i += 16)
-    {
-        s_printf("0x%08X  ", start_base + i);
-
-        for (j = 0; j < 16; j++)
-        {
-            if (i + j < len)
-            {
-                val = *((unsigned char *)(start_base + i + j));
-                s_printf("%02X ", val);
-                ascii_buf[j] = (val >= 32 && val <= 126) ? val : '.';
-            }
-            else
-            {
-                s_printf("   ");
-                ascii_buf[j] = ' ';
-            }
-        }
-
-        s_printf(" %s\r\n", ascii_buf);
-    }
-}
-
-static int nand_test(int argc, char **argv)
-{
-    int ret = 0;
-    int i = 0;
-
-    for (i = 0; i < 2048; i++)
-    {
-        write_buffer[i] = i;
-        read_buffer[i] = 0;
-    }
-
-    ret = nand_page_read(&nand, TEST_PAGE, read_buffer);
-    if (ret != 0)
-    {
-        s_printf("nand page read failed\r\n");
-    }
-    else
-    {
-        s_printf("nand page read success\r\n");
-        s_printf("read_buffer : \r\n");
-        dump_page((void *)read_buffer, 2048);
-    }
-
-    ret = nand_erase_page(&nand, TEST_PAGE);
-    if (ret != 0)
-    {
-        s_printf("nand page erase failed\r\n");
-    }
-    else
-    {
-        s_printf("nand page erase success\r\n");
-    }
-
-    ret = nand_page_read(&nand, TEST_PAGE, read_buffer);
-    if (ret != 0)
-    {
-        s_printf("nand page read failed\r\n");
-    }
-    else
-    {
-        s_printf("nand page read success\r\n");
-        s_printf("read_buffer : \r\n");
-        dump_page((void *)read_buffer, 2048);
-    }
-
-    ret = nand_page_write(&nand, TEST_PAGE, write_buffer);
-    if (ret != 0)
-    {
-        s_printf("nand page write failed\r\n");
-    }
-    else
-    {
-        s_printf("nand page write success\r\n");
-    }
-
-    ret = nand_page_read(&nand, TEST_PAGE, read_buffer);
-    if (ret != 0)
-    {
-        s_printf("nand page read failed\r\n");
-    }
-    else
-    {
-        s_printf("nand page read success\r\n");
-        s_printf("read_buffer : \r\n");
-        dump_page((void *)read_buffer, 2048);
-    }
-
-    return 0;
-}
-
-static struct shell_command nand_cmd =
-{
-    .name = "nand_tset",
-    .desc = "test nand function",
-    .func = nand_test,
+    .name = "lfs_tset",
+    .desc = "test lfs function",
+    .func = lfs_test,
     .next = SHELL_NULL,
 };
 
@@ -419,33 +260,27 @@ int main(void)
         s_printf("memheap init failed\r\n");
     }
 
-    ret = spi_init(&spi1);
-    if (ret != 0)
-    {
-        s_printf("spi1 init failed\r\n");
-    }
-
     ret = nand_init(&nand);
     if (ret != 0)
     {
         s_printf("nand init failed\r\n");
     }
-    else
+
+    ret = partition_nand_register();
+    if (ret != 0)
     {
-        s_printf("nand init success\r\n");
-        s_printf("nand info : \r\n");
-        s_printf("mfr_id          = 0x%02x\r\n", nand.info.id.mfr_id);
-        s_printf("dev_id          = 0x%04x\r\n", nand.info.id.dev_id);
-        s_printf("page_size       = %d\r\n", nand.info.page_size);
-        s_printf("spare_size      = %d\r\n", nand.info.spare_size);
-        s_printf("pages_per_block = %d\r\n", nand.info.pages_per_block);
-        s_printf("blocks_total    = %d\r\n", nand.info.blocks_total);
+        s_printf("partition nand register failed\r\n");
+    }
+
+    ret = drv_lfs_mount();
+    if (ret != 0)
+    {
+        s_printf("lfs mount failed %d\r\n", ret);
     }
 
     shell_register_command(&free_cmd);
     shell_register_command(&clk_cmd);
-    shell_register_command(&nand_cmd);
-    shell_register_command(&spi1_test_cmd);
+    shell_register_command(&lfs_cmd);
 
     while(1)
     {

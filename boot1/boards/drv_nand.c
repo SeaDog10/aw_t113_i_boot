@@ -310,6 +310,19 @@ int nand_init(struct spi_nand_handle *nand)
         return -1;
     }
 
+    ret = nand_get_feature(nand, SR_ADDR_PROTECT, &val);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    val &= ~(0x1f << 2);
+    val |= (1 << 2) | (0 << 6) | (1 << 5) | (0 << 4) | (1 << 3); /* protect 2M block 0~15 page 0~960 */
+    ret = nand_set_feature(nand, SR_ADDR_PROTECT, val);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
     ret = nand_get_feature(nand, SR_ADDR_CONFIG, &val);
     if (ret != 0)
     {
@@ -358,7 +371,8 @@ int nand_deinit(struct spi_nand_handle *nand)
     return 0;
 }
 
-int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned char *data)
+int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned int offset,
+    unsigned char *data, unsigned int len)
 {
     int ret = 0;
     unsigned char tx[4];
@@ -375,6 +389,11 @@ int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned cha
         return -1;
     }
 
+    if ((offset > (nand->info.page_size)) || (len > (nand->info.page_size)))
+    {
+        return -1;
+    }
+
     ret = nand_load_page(nand, page);
     if (ret != 0)
     {
@@ -382,14 +401,14 @@ int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned cha
     }
 
     tx[0] = OPCODE_READ_CACHE;
-    tx[1] = 0x00;
-    tx[2] = 0x00;
+    tx[1] = (unsigned char)(offset >> 8);
+    tx[2] = (unsigned char)(offset >> 0);
     tx[3] = 0x00;
 
     msg.tx_buf   = tx;
     msg.tx_len   = 4;
     msg.rx_buf   = data;
-    msg.rx_len   = nand->info.page_size;
+    msg.rx_len   = len;
     msg.dummylen = 0;
 
     ret = spi_transfer(&nand->nand_spi, &msg);
@@ -418,7 +437,8 @@ int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned cha
     return 0;
 }
 
-int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned char *data)
+int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned int offset,
+    unsigned char *data, unsigned int len)
 {
     int ret = 0;
     unsigned char tx[3];
@@ -436,6 +456,11 @@ int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned ch
         return -1;
     }
 
+    if ((offset > (nand->info.page_size)) || (len > (nand->info.page_size)))
+    {
+        return -1;
+    }
+
     ret = nand_write_enable(nand);
     if (ret != 0)
     {
@@ -443,8 +468,8 @@ int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned ch
     }
 
     tx[0] = OPCODE_PROGRAM_LOAD;
-    tx[1] = 0x00;
-    tx[2] = 0x00;
+    tx[1] = (unsigned char)(offset >> 8);
+    tx[2] = (unsigned char)(offset >> 0);
 
     first_msg.tx_buf   = tx;
     first_msg.tx_len   = 3;
@@ -453,7 +478,7 @@ int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned ch
     first_msg.dummylen = 0;
 
     second_msg.tx_buf   = data;
-    second_msg.tx_len   = nand->info.page_size;
+    second_msg.tx_len   = len;
     second_msg.rx_buf   = U_NULL;
     second_msg.rx_len   = 0;
     second_msg.dummylen = 0;

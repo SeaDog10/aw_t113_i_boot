@@ -50,21 +50,25 @@ add_link_options(
 include_directories(
     ${CMAKE_SOURCE_DIR}/application
     ${CMAKE_SOURCE_DIR}/boards
+    ${CMAKE_SOURCE_DIR}/boards/port
     ${CMAKE_SOURCE_DIR}/libcpu
     ${CMAKE_SOURCE_DIR}/shell
     ${CMAKE_SOURCE_DIR}/memheap
-    # ${CMAKE_SOURCE_DIR}/partition
+    ${CMAKE_SOURCE_DIR}/partition
+    ${CMAKE_SOURCE_DIR}/lfs
 )
 
 # 添加源文件
 file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/application/*.c"
     "${CMAKE_SOURCE_DIR}/boards/*.c"
+    "${CMAKE_SOURCE_DIR}/boards/port/*.c"
     "${CMAKE_SOURCE_DIR}/libcpu/*.c"
     "${CMAKE_SOURCE_DIR}/libcpu/*.S"
     "${CMAKE_SOURCE_DIR}/shell/*.c"
     "${CMAKE_SOURCE_DIR}/memheap/*.c"
-    # "${CMAKE_SOURCE_DIR}/partition/*.c"
+    "${CMAKE_SOURCE_DIR}/partition/*.c"
+    "${CMAKE_SOURCE_DIR}/lfs/*.c"
 )
 
 # 构建目标

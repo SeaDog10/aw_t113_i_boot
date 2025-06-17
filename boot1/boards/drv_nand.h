@@ -29,8 +29,10 @@ struct spi_nand_handle
 
 int nand_init(struct spi_nand_handle *nand);
 int nand_deinit(struct spi_nand_handle *nand);
-int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned char *data);
-int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned char *data);
+int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned int offset,
+    unsigned char *data, unsigned int len);
+int nand_page_write(struct spi_nand_handle *nand, unsigned int page, unsigned int offset,
+    unsigned char *data, unsigned int len);
 int nand_erase_page(struct spi_nand_handle *nand, unsigned int page);
 
 #endif

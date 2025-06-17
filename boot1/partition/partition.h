@@ -1,54 +1,29 @@
 #ifndef _PARTITION_H_
 #define _PARTITION_H_
 
-#include "string.h"
-#include "stdio.h"
+#define PARTITION_DEV_NAME_MAX    16
+#define PARTITION_NAME_MAX        16
+#define PARTITION_DEV_MAX         5
+#define PARTITION_MAX             20
 
-#define PARTITION_NAME_MAX   16
-
-typedef struct slist_node
-{
-    struct slist_node *next;                          /**< point to next node. */
-}slist_t;
-
-struct partition_ops
+struct partition_dev_ops
 {
     int (*init) (void);
     int (*read) (unsigned int addr, unsigned char *buf, unsigned int size);
-    int (*write)(unsigned int addr, const unsigned char  *buf, unsigned int size);
+    int (*write)(unsigned int addr, unsigned char  *buf, unsigned int size);
     int (*erase)(unsigned int addr, unsigned int size);
 };
 
-struct partition_device
-{
-    char name[PARTITION_NAME_MAX];
-    unsigned int size;
-    unsigned int block_size;
-    int erase_before_write;
-    struct partition_ops ops;
-    slist_t node;
-};
-
-struct partition
-{
-    struct partition_device *dev;
-    char name[PARTITION_NAME_MAX];
-    unsigned int start;
-    unsigned int size;
-    slist_t node;
-};
-
-int partition_device_register(struct partition_device *dev, const char *dev_name);
+int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size, unsigned int block_size);
 int partition_device_unregister(const char *dev_name);
-struct partition_device *partition_device_find(const char *dev_name);
-int partition_device_init(struct partition_device *dev);
+int partition_device_init(const char *dev_name);
 
-int partition_register(struct partition *part, const char *dev_name, const char *part_name);
-int partition_unregister(const char *name);
-struct partition *partition_find(const char *name);
-int partition_read(struct partition *part, void *buf, unsigned int offset, unsigned int len);
-int partition_write(struct partition *part, void *buf, unsigned int offset, unsigned int len);
-int partition_erase(struct partition *part, unsigned int offset, unsigned int len);
+int partition_register(const char *partition_name, const char *dev_name, unsigned int start, unsigned int size);
+int partition_unregister(const char *partition_name);
+
+int partition_read(const char *partition_name, void *buf, unsigned int offset, unsigned int len);
+int partition_write(const char *partition_name, void *buf, unsigned int offset, unsigned int len);
+int partition_erase(const char *partition_name, unsigned int offset, unsigned int len);
 
 void show_partition_info(void);
 

@@ -1,455 +1,469 @@
 #include "partition.h"
 
-static slist_t partition_dev_table_list =
+#define PARTITION_NULL            0
+
+struct partition_device
 {
-    .next = NULL
+    char name[PARTITION_DEV_NAME_MAX];
+    unsigned int size;
+    unsigned int block_size;
+    struct partition_dev_ops *ops;
+    unsigned int id;
 };
 
-static slist_t partition_table_list =
+struct partition
 {
-    .next = NULL
+    char name[PARTITION_NAME_MAX];
+    unsigned int start;
+    unsigned int size;
+    struct partition_device *dev;
+    unsigned int id;
 };
 
-#define container_of(ptr, type, member) \
-    ((type *)((char *)(ptr) - (unsigned long)(&((type *)0)->member)))
+static struct partition_device partition_dev_table[PARTITION_DEV_MAX] = {0};
+static struct partition         partition_table[PARTITION_MAX]         = {0};
 
-static void slist_init(slist_t *l)
+static unsigned int partition_dev_num = 0;
+static unsigned int partition_num     = 0;
+
+static unsigned int partition_strlen(const char *s)
 {
-    l->next = NULL;
+    const char *sc;
+
+    for (sc = s; *sc != '\0'; ++sc)
+    {
+        /* nothing */
+    }
+
+    return sc - s;
 }
 
-static void slist_append(slist_t *l, slist_t *n)
+static char *partition_strncpy(void *dst, const void *src, unsigned int n)
 {
-    struct slist_node *node;
-
-    node = l;
-    while (node->next) node = node->next;
-
-    /* append the node to the tail */
-    node->next = n;
-    n->next = NULL;
-}
-
-static unsigned int slist_len(const slist_t *l)
-{
-    unsigned int len = 0;
-    const slist_t *list = l->next;
-    while (list != NULL)
+    if (n != 0U)
     {
-        list = list->next;
-        len ++;
-    }
+        char *d = dst;
+        const char *s = src;
 
-    return len;
-}
-
-static slist_t *slist_remove(slist_t *l, slist_t *n)
-{
-    /* remove slist head */
-    struct slist_node *node = l;
-    while (node->next && node->next != n) node = node->next;
-
-    /* remove node */
-    if (node->next != (slist_t *)0) node->next = node->next->next;
-
-    return l;
-}
-
-static slist_t *slist_next(slist_t *n)
-{
-    return n->next;
-}
-
-/**
- * @brief 注册一个分区设备到分区设备列表中
- *
- * @param dev 要注册的分区设备指针
- * @param dev_name 分区设备的名称
- * @return int 注册操作的结果，成功返回0，失败返回-1
- */
-int partition_device_register(struct partition_device *dev, const char *dev_name)
-{
-    int ret = 0;
-
-    if (dev == NULL || dev_name == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    if (strlen(dev_name) >= PARTITION_NAME_MAX)
-    {
-        memcpy(dev->name, dev_name, PARTITION_NAME_MAX);
-    }
-    else
-    {
-        memcpy(dev->name, dev_name, strlen(dev_name));
-    }
-
-    if (partition_device_find(dev->name) != NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    slist_init(&dev->node);
-    slist_append(&partition_dev_table_list, &dev->node);
-
-exit:
-    return ret;
-}
-
-/**
- * @brief 从分区设备列表中注销指定名称的分区设备
- *
- * @param dev_name 要注销的分区设备名称
- * @return int 注销操作的结果，成功返回0，失败返回-1
- */
-int partition_device_unregister(const char *dev_name)
-{
-    int ret = 0;
-    slist_t *node = NULL;
-    struct partition_device *dev = NULL;
-    struct partition *part = NULL;
-
-    if (dev_name == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    dev = partition_device_find(dev_name);
-    if (dev == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    node = slist_next(&partition_table_list);
-    while (node != NULL)
-    {
-        part = container_of(node, struct partition, node);
-        if (dev == part->dev)
+        do
         {
-            slist_remove(&partition_table_list, node);
-        }
-        node = node->next;
+            *d = *s;
+            if (*s == 0)
+            {
+                /* NUL pad the remaining n-1 bytes */
+                while (--n != 0U)
+                {
+                    *d++ = 0;
+                }
+
+                break;
+            }
+            d++;
+            s++;
+        } while (--n != 0U);
     }
 
-    slist_remove(&partition_dev_table_list, &dev->node);
-
-exit:
-    return ret;
+    return (dst);
 }
 
-/**
- * @brief 在分区设备列表中查找指定名称的分区设备
- *
- * @param dev_name 要查找的分区设备名称
- * @return struct partition_device* 找到的分区设备指针，如果未找到则返回NULL
- */
-struct partition_device *partition_device_find(const char *dev_name)
+static int partition_strncmp(const char *cs, const char *ct, unsigned int n)
 {
-    slist_t *node = NULL;
-    struct partition_device *dev = NULL;
+    signed char res = 0;
 
-    if (dev_name == NULL)
+    while (n)
     {
-        goto exit;
-    }
-
-    node = slist_next(&partition_dev_table_list);
-    while (node != NULL)
-    {
-        dev = container_of(node, struct partition_device, node);
-        if (0 == strcmp(dev_name, dev->name))
+        if ((res = *cs - *ct++) != 0 || !*cs++)
         {
             break;
         }
-        node = node->next;
+
+        n --;
     }
 
-exit:
-    return dev;
+    return res;
 }
 
-/**
- * @brief 初始化分区设备
- *
- * @param dev 分区设备指针
- * @return int 初始化结果，成功返回0，失败返回-1
- */
-
-int partition_device_init(struct partition_device *dev)
+static void *partition_memmove(void *dest, const void *src, unsigned int n)
 {
-    int ret = -1;
+    char *tmp = (char *)dest, *s = (char *)src;
 
-    if (dev == NULL)
+    if ((s < tmp) && (tmp < (s + n)))
     {
-        ret = -1;
-        goto exit;
-    }
+        tmp += n;
+        s += n;
 
-    if (dev->ops.init)
-    {
-        ret = dev->ops.init();
-    }
-
-exit:
-    return ret;
-}
-
-/**
- * @brief 在分区设备中查找指定名称的分区
- *
- * @param name 要查找的分区名称
- * @return struct partition* 找到的分区指针，如果未找到则返回NULL
- */
-struct partition *partition_find(const char *name)
-{
-    slist_t *node = NULL;
-    struct partition *part = NULL;
-
-    if (name == NULL)
-    {
-        return NULL;
-    }
-
-    node = slist_next(&partition_table_list);
-    while (node != NULL)
-    {
-        part = container_of(node, struct partition, node);
-        if (0 == strcmp(name, part->name))
+        while (n--)
         {
-            return part;
+             *(--tmp) = *(--s);
         }
-        node = node->next;
-    }
-
-    return NULL;
-}
-
-/**
- * @brief 从指定分区读取数据
- *
- * @param part 分区指针
- * @param buf 数据缓冲区指针
- * @param offset 读取数据的偏移量
- * @param len 要读取的数据长度
- * @return int 读取操作的结果，成功返回0，失败返回-1
- */
-int partition_read(struct partition *part, void *buf, unsigned int offset, unsigned int len)
-{
-    int ret = -1;
-    unsigned int addr = 0;
-
-    if (part == NULL || buf == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    if ((offset + len) > part->size)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    addr = part->start + offset;
-
-    if (part->dev->ops.read)
-    {
-        ret = part->dev->ops.read(addr, buf, len);
-    }
-
-exit:
-    return ret;
-}
-
-/**
- * @brief 向指定分区写入数据
- *
- * @param part 分区指针
- * @param buf 数据缓冲区指针
- * @param offset 写入数据的偏移量
- * @param len 要写入的数据长度
- * @return int 写入操作的结果，成功返回0，失败返回-1
- */
-int partition_write(struct partition *part, void *buf, unsigned int offset, unsigned int len)
-{
-    int ret = -1;
-    unsigned int addr = 0;
-
-    if (part == NULL || buf == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    if ((offset + len) > part->size)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    addr = part->start + offset;
-
-    if (part->dev->erase_before_write)
-    {
-        ret = part->dev->ops.erase(addr, len);
-        if (ret != 0)
-        {
-            goto exit;
-        }
-    }
-
-    if (part->dev->ops.write)
-    {
-        ret = part->dev->ops.write(addr, buf, len);
-    }
-
-exit:
-    return ret;
-}
-
-/**
- * @brief 擦除指定分区中的数据
- *
- * @param part 分区指针
- * @param offset 擦除数据的偏移量
- * @param len 要擦除的数据长度
- * @return int 擦除操作的结果，成功返回0，失败返回-1
- */
-int partition_erase(struct partition *part, unsigned int offset, unsigned int len)
-{
-    int ret = -1;
-    unsigned int addr = 0;
-
-    if (part == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    if ((offset + len) > part->size)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    addr = part->start + offset;
-
-    if (part->dev->ops.erase)
-    {
-        ret = part->dev->ops.erase(addr, len);
-    }
-
-exit:
-    return ret;
-}
-
-/**
- * @brief 注册一个分区到分区列表中
- *
- * @param part 要注册的分区指针
- * @param dev_name 分区所属的设备名称
- * @param part_name 分区的名称
- * @return int 注册操作的结果，成功返回0，失败返回-1
- */
-int partition_register(struct partition *part, const char *dev_name, const char *part_name)
-{
-    int ret = 0;
-    struct partition_device *dev = NULL;
-
-    if (part == NULL || dev_name == NULL || part_name == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-    dev = partition_device_find(dev_name);
-    if (dev == NULL)
-    {
-        ret = -1;
-        goto exit;
-    }
-
-    if (partition_find(part_name))
-    {
-
-        ret = -1;
-        goto exit;
-    }
-
-    if (strlen(part_name) >= PARTITION_NAME_MAX)
-    {
-        memcpy(part->name, part_name, PARTITION_NAME_MAX);
     }
     else
     {
-        memcpy(part->name, part_name, strlen(part_name));
+        while (n--)
+        {
+            *tmp++ = *s++;
+        }
     }
 
-    if ((part->size) > dev->size)
+    return dest;
+}
+
+static struct partition_device *partition_device_find(const char *dev_name)
+{
+    int i = 0;
+    struct partition_device *dev = PARTITION_NULL;
+
+    for (i = 0; i < partition_dev_num; i++)
+    {
+        if (0 == partition_strncmp(dev_name, partition_dev_table[i].name, partition_strlen(dev_name)))
+        {
+            dev = &partition_dev_table[i];
+            break;
+        }
+    }
+
+    return dev;
+}
+
+static struct partition *partition_find(const char *name)
+{
+    int i = 0;
+    struct partition *part = PARTITION_NULL;
+
+    for (i = 0; i < partition_num; i++)
+    {
+        if (0 == partition_strncmp(name, partition_table[i].name, partition_strlen(name)))
+        {
+            part = &partition_table[i];
+            break;
+        }
+    }
+
+    return part;
+}
+
+int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size, unsigned int block_size)
+{
+    int ret = 0;
+
+    if (dev_name == PARTITION_NULL || ops == PARTITION_NULL)
     {
         ret = -1;
         goto exit;
     }
 
-    part->dev = dev;
-    slist_init(&part->node);
-    slist_append(&partition_table_list, &part->node);
+    if (partition_dev_num >= PARTITION_DEV_MAX)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if (partition_device_find(dev_name) != PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if (partition_strlen(dev_name) >= PARTITION_DEV_NAME_MAX)
+    {
+        partition_strncpy(partition_dev_table[partition_dev_num].name, dev_name, PARTITION_DEV_NAME_MAX);
+    }
+    else
+    {
+        partition_strncpy(partition_dev_table[partition_dev_num].name, dev_name, partition_strlen(dev_name));
+    }
+
+    partition_dev_table[partition_dev_num].size = size;
+    partition_dev_table[partition_dev_num].block_size = block_size;
+    partition_dev_table[partition_dev_num].ops = ops;
+    partition_dev_table[partition_dev_num].id = partition_dev_num;
+    partition_dev_num++;
+
+exit:
+    return ret;
+}
+
+int partition_device_unregister(const char *dev_name)
+{
+    int ret = -1;
+    int i = 0;
+    struct partition_device *dev = PARTITION_NULL;
+
+    if (dev_name == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    dev = partition_device_find(dev_name);
+    if (dev == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    for (i = 0; i < partition_dev_num; i++)
+    {
+        if (partition_table[i].dev == dev)
+        {
+            (void)partition_unregister(partition_table[i].name);
+        }
+    }
+
+    partition_dev_num--;
+
+    if (dev->id != (partition_dev_num))
+    {
+        partition_memmove(&partition_table[dev->id], &partition_dev_table[dev->id + 1], (partition_dev_num - dev->id) * sizeof(struct partition_device));
+    }
+
+    for (i = 0; i < PARTITION_DEV_NAME_MAX; i++)
+    {
+        partition_dev_table[partition_dev_num].name[i] = 0;
+    }
+
+exit:
+    return ret;
+}
+
+int partition_device_init(const char *dev_name)
+{
+    int ret = -1;
+    struct partition_device *dev = PARTITION_NULL;
+
+    if (dev_name == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    dev = partition_device_find(dev_name);
+    if (dev == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if (dev->ops->init)
+    {
+        ret = dev->ops->init();
+    }
+
+exit:
+    return ret;
+}
+
+int partition_read(const char *partition_name, void *buf, unsigned int offset, unsigned int len)
+{
+    int ret = -1;
+    unsigned int addr = 0;
+    struct partition *part = PARTITION_NULL;
+
+    if (partition_name == PARTITION_NULL || buf == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    part = partition_find(partition_name);
+    if (part == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if ((offset + len) > part->size)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    addr = part->start + offset;
+
+    if (part->dev->ops->read)
+    {
+        ret = part->dev->ops->read(addr, buf, len);
+    }
+
+exit:
+    return ret;
+}
+
+int partition_write(const char *partition_name, void *buf, unsigned int offset, unsigned int len)
+{
+    int ret = -1;
+    unsigned int addr = 0;
+    struct partition *part = PARTITION_NULL;
+
+    if (partition_name == PARTITION_NULL || buf == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    part = partition_find(partition_name);
+    if (part == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if ((offset + len) > part->size)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    addr = part->start + offset;
+
+    if (part->dev->ops->write)
+    {
+        ret = part->dev->ops->write(addr, buf, len);
+    }
+
+exit:
+    return ret;
+}
+
+int partition_erase(const char *partition_name, unsigned int offset, unsigned int len)
+{
+    int ret = -1;
+    unsigned int addr = 0;
+    struct partition *part = PARTITION_NULL;
+
+    if (partition_name == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    part = partition_find(partition_name);
+    if (part == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if ((offset + len) > part->size)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    addr = part->start + offset;
+
+    if (part->dev->ops->erase)
+    {
+        ret = part->dev->ops->erase(addr, len);
+    }
+
+exit:
+    return ret;
+}
+
+int partition_register(const char *partition_name, const char *dev_name, unsigned int start, unsigned int size)
+{
+    int ret = 0;
+    struct partition_device *dev = PARTITION_NULL;
+
+    if (partition_name == PARTITION_NULL || dev_name == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if (partition_num >= PARTITION_MAX)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    dev = partition_device_find(dev_name);
+    if (dev == PARTITION_NULL)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if (partition_find(partition_name))
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if ((start + size) > dev->size)
+    {
+        ret = -1;
+        goto exit;
+    }
+
+    if (partition_strlen(partition_name) >= PARTITION_NAME_MAX)
+    {
+        partition_memmove(partition_table[partition_num].name, partition_name, PARTITION_NAME_MAX);
+    }
+    else
+    {
+        partition_memmove(partition_table[partition_num].name, partition_name, partition_strlen(partition_name));
+    }
+
+    partition_table[partition_num].dev = dev;
+    partition_table[partition_num].start = start;
+    partition_table[partition_num].size = size;
+    partition_table[partition_num].id = partition_num;
+    partition_num++;
 
 exit :
     return ret;
 }
 
-/**
- * @brief 从分区列表中注销指定名称的分区
- *
- * @param name 要注销的分区名称
- * @return int 注销操作的结果，成功返回0，失败返回-1
- */
-int partition_unregister(const char *name)
+int partition_unregister(const char *partition_name)
 {
     int ret = 0;
-    struct partition *part = NULL;
+    int i = 0;
+    struct partition *part = PARTITION_NULL;
 
-    if (name == NULL)
+    if (partition_name == PARTITION_NULL)
     {
         ret = -1;
         goto exit;
     }
 
-    part = partition_find(name);
-    if (part == NULL)
+    part = partition_find(partition_name);
+    if (part == PARTITION_NULL)
     {
         ret = -1;
         goto exit;
     }
 
-    slist_remove(&partition_table_list, &part->node);
+    partition_num--;
+
+    if (part->id != (partition_num))
+    {
+        partition_memmove(&partition_table[part->id], &partition_table[part->id + 1], (partition_num - part->id) * sizeof(struct partition));
+    }
+
+    for (i = 0; i < PARTITION_NAME_MAX; i++)
+    {
+        partition_table[partition_num].name[i] = 0;
+    }
 
 exit:
     return ret;
 }
 
 #if 1
-#include "debug.h"
+#include "shell.h"
 
 void show_partition_info(void)
 {
-    slist_t *node = NULL;
-    struct partition *part = NULL;
+    int i = 0;
 
-    node = slist_next(&partition_table_list);
-    debug("partition info : \r\n");
-    debug("| name             | start      | size       | device           |\r\n");
-    debug("| ---------------- | ---------- | ---------- | ---------------- |\r\n");
-    while (node!= NULL)
+    s_printf("partition info : \r\n");
+    s_printf("| name             | start      | size       | device           |\r\n");
+    s_printf("| ---------------- | ---------- | ---------- | ---------------- |\r\n");
+    for (i = 0; i < partition_num; i++)
     {
-        part = container_of(node, struct partition, node);
-        debug("| %-16s | 0x%08x | 0x%08x | %-16s |\r\n", part->name, part->start, part->size, part->dev->name);
-        node = node->next;
+        s_printf("| %-16s | 0x%08x | 0x%08x | %-16s |\r\n", partition_table[i].name, partition_table[i].start, partition_table[i].size, partition_table[i].dev->name);
     }
 }
 #endif
