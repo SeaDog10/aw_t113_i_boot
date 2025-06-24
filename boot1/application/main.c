@@ -4,12 +4,15 @@
 #include "drv_uart.h"
 #include "drv_iomux.h"
 #include "drv_clk.h"
+#include "shell_port.h"
+#include "ymodem_port.h"
 #include "littlefs_port.h"
 #include "lfs.h"
 #include "partition_port.h"
 #include "partition.h"
 #include "memheap.h"
 #include "shell.h"
+#include "ymodem.h"
 
 struct uart_handle uart0 = {
     .base     = UART0_BASE_ADDR,
@@ -94,30 +97,6 @@ struct spi_nand_handle nand =
         }
     },
 };
-
-const char *start_logo =
-"                                                     \r\n\
-  _    _  _____        ____   ____   ____ _______     \r\n\
- | |  | |/ ____|      |  _ \\ / __ \\ / __ \\__   __| \r\n\
- | |__| | |  __ ______| |_) | |  | | |  | | | |       \r\n\
- |  __  | | |_ |______|  _ <| |  | | |  | | | |       \r\n\
- | |  | | |__| |      | |_) | |__| | |__| | | |       \r\n\
- |_|  |_|\\_____|      |____/ \\____/ \\____/  |_|    \r\n\
- version:V0.0.1\r\n";
-
-static void shell_uart_putc(void *arg, char c)
-{
-    struct uart_handle *uart = (struct uart_handle *)arg;
-
-    uart_putc(uart, c);
-}
-
-static char shell_uart_getc(void *arg)
-{
-    struct uart_handle *uart = (struct uart_handle *)arg;
-
-    return uart_getc(uart);
-}
 
 static int memfree(int argc, char **argv)
 {
@@ -250,9 +229,13 @@ int main(void)
 
     drv_clk_init();
 
-    uart_init(&uart0);
+    (void)shell_register();
 
-    shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0, start_logo);
+    ret = ymodem_register();
+    if (ret != 0)
+    {
+        s_printf("ymodem init err.\r\n");
+    }
 
     ret = rt_memheap_init(&system_heap, HEAP_BEGIN, HEAP_SIZE);
     if (ret != 0)

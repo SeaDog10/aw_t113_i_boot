@@ -94,10 +94,8 @@ int rt_memheap_init(struct rt_memheap *memheap,
 {
     struct rt_memheap_item *item;
 
-    // RT_ASSERT(memheap != RT_NULL);
     if (memheap == RT_NULL)
     {
-        //error("memheap == RT_NULL\r\n");
         return -RT_ERROR;
     }
 
@@ -153,7 +151,6 @@ int rt_memheap_init(struct rt_memheap *memheap,
     item->next_free = item->prev_free = RT_NULL;
 
     /* initialize semaphore lock */
-    // rt_sem_init(&(memheap->lock), name, 1, RT_IPC_FLAG_PRIO);
     memheap->locked = RT_FALSE;
 
     return RT_EOK;
@@ -175,7 +172,6 @@ void *rt_memheap_alloc(struct rt_memheap *heap, unsigned int size)
 
     if (heap == RT_NULL)
     {
-        //error("heap == RT_NULL\r\n");
         return RT_NULL;
     }
 
@@ -292,7 +288,6 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, unsigned int newsiz
 
     if (heap == RT_NULL)
     {
-        //error("heap == RT_NULL\r\n");
         return RT_NULL;
     }
 
@@ -327,8 +322,7 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, unsigned int newsiz
         /* header_ptr should not be the tail */
         if (next_ptr < header_ptr)
         {
-            //error("next_ptr < header_ptr\r\n");
-            while(1);
+            return RT_NULL;
         }
 
         /* check whether the following free space is enough to expand */
@@ -339,8 +333,7 @@ void *rt_memheap_realloc(struct rt_memheap *heap, void *ptr, unsigned int newsiz
             nextsize = MEMITEM_SIZE(next_ptr);
             if (next_ptr <= 0)
             {
-                //error("next_ptr <= 0\r\n");
-                while(1);
+                return RT_NULL;
             }
 
             /* Here is the ASCII art of the situation that we can make use of
@@ -472,25 +465,21 @@ void rt_memheap_free(void *ptr)
     {
         if (header_ptr->magic != (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED))
         {
-            //error("header_ptr->magic != (RT_MEMHEAP_MAGIC | RT_MEMHEAP_USED)\r\n");
-            while(1);
+            return;
         }
         /* check whether this block of memory has been over-written. */
         if ((header_ptr->next->magic & RT_MEMHEAP_MASK)!= RT_MEMHEAP_MAGIC)
         {
-            //error("(header_ptr->next->magic & RT_MEMHEAP_MASK)!= RT_MEMHEAP_MAGIC\r\n");
-            while(1);
+            return;
         }
     }
 
     /* get pool ptr */
     heap = header_ptr->pool_ptr;
 
-    // RT_ASSERT(heap);
     if (heap == RT_NULL)
     {
-        //error("heap == RT_NULL\r\n");
-        while(1);
+        return;
     }
 
     /* Mark the memory as available. */
