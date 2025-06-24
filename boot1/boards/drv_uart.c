@@ -238,9 +238,9 @@ int uart_putc(struct uart_handle *uart, char c)
     return ret;
 }
 
-char uart_getc(struct uart_handle *uart)
+int uart_getc(struct uart_handle *uart)
 {
-    char ch = -1;
+    char ch = 0;
 
     if (uart == U_NULL)
     {
@@ -265,7 +265,7 @@ char uart_getc(struct uart_handle *uart)
         uart->fifo.is_full = 0;
     }
 
-    return ch;
+    return (int)ch;
 }
 
 int uart_bind_recv_callback(void (*callback)(void *param))

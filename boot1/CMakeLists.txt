@@ -56,6 +56,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/memheap
     ${CMAKE_SOURCE_DIR}/partition
     ${CMAKE_SOURCE_DIR}/lfs
+    ${CMAKE_SOURCE_DIR}/ymodem
 )
 
 # 添加源文件
@@ -69,6 +70,7 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/memheap/*.c"
     "${CMAKE_SOURCE_DIR}/partition/*.c"
     "${CMAKE_SOURCE_DIR}/lfs/*.c"
+    "${CMAKE_SOURCE_DIR}/ymodem/*.c"
 )
 
 # 构建目标
