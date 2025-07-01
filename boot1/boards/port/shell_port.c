@@ -12,7 +12,7 @@ static const char *start_logo =
  |  __  | | |_ |______|  _ <| |  | | |  | | | |       \r\n\
  | |  | | |__| |      | |_) | |__| | |__| | | |       \r\n\
  |_|  |_|\\_____|      |____/ \\____/ \\____/  |_|    \r\n\
- version:V0.0.1\r\n";
+ version:V0.0.2\r\n";
 
 static void shell_uart_putc(void *arg, char c)
 {

@@ -3,7 +3,7 @@
 
 #include "xformat.h"
 
-#define LOG_LEVEL 50
+#define LOG_LEVEL 10
 
 #define LOG_ERROR 10
 #define LOG_WARN  20

@@ -1,6 +1,23 @@
 .section .vectors, "ax"
 .code 32
 
+.long 0x12345678
+.long __img_size
+.long __img_start
+.long __entry_addr
+.long 0x00000000
+.long 0x11111111
+.long 0x22222222
+.long 0x33333333
+.long 0x44444444
+.long 0x55555555
+.long 0x66666666
+.long 0x77777777
+.long 0x88888888
+.long 0x99999999
+.long 0xaaaaaaaa
+.long 0xbbbbbbbb
+
 .globl system_vectors
 system_vectors:
     ldr pc, _vector_reset

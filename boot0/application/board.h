@@ -5,8 +5,6 @@
 #include "sunxi_spi.h"
 #include "sunxi_usart.h"
 
-#define BUILD_FOR_DEBUG
-
 #define USART_DBG usart0_dbg
 #define CONFIG_ENABLE_CPU_FREQ_DUMP
 
