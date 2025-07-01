@@ -1,5 +1,4 @@
 #include "partition_port.h"
-#include "shell.h"
 
 extern struct spi_nand_handle nand;
 
@@ -107,65 +106,113 @@ static int partition_nand_write(unsigned int addr, unsigned char  *buf, unsigned
 static int partition_nand_erase(unsigned int addr, unsigned int size)
 {
     int ret = 0;
-    int i   =0;
-    unsigned char *buffer_ptr = U_NULL;
-    unsigned int first_page_on_block = 0;
-    unsigned int page = 0;
+    unsigned int i = 0;
+    unsigned int block_size = 0;
+    unsigned int total_size = 0;
+    unsigned int erase_start = 0;
+    unsigned int erase_end = 0;
+    unsigned int blk = 0;
+    unsigned int block_start_index = 0;
+    unsigned int block_end_index = 0;
+    unsigned int blk_start_addr = 0;
+    unsigned int blk_end_addr = 0;
     unsigned int offset = 0;
-    unsigned int erase_size = 0;
+    unsigned int length = 0;
+    unsigned int index = 0;
+    unsigned char *buffer_ptr = U_NULL;
 
-    if ((addr + size) > (nand.info.page_size * nand.info.pages_per_block * nand.info.blocks_total))
+    block_size = nand.info.pages_per_block * nand.info.page_size;
+    total_size = nand.info.blocks_total * block_size;
+
+    if ((addr + size) > total_size)
     {
         return -1;
     }
 
-    page   = addr / nand.info.page_size;
-    offset = addr % nand.info.page_size;
-    erase_size = size;
+    erase_start = addr;
+    erase_end = addr + size;
 
-    if ((offset + erase_size) > (nand.info.page_size * nand.info.pages_per_block))
+    block_start_index = erase_start / block_size;
+    block_end_index   = (erase_end - 1) / block_size;
+
+    for (blk = block_start_index; blk <= block_end_index; blk++)
     {
-        return -1;
-    }
+        blk_start_addr = blk * block_size;
+        blk_end_addr   = blk_start_addr + block_size;
 
-    first_page_on_block = (page / 64) * 64;
-    page -= first_page_on_block;
-
-    buffer_ptr = cache_erase;
-    for (i = 0; i < nand.info.pages_per_block; i++)
-    {
-        ret = nand_page_read(&nand, first_page_on_block + i, 0, buffer_ptr, nand.info.page_size);
-        if (ret != 0)
+        if (erase_start > blk_start_addr)
         {
-            return -1;
+            offset = erase_start - blk_start_addr;
         }
-        buffer_ptr += nand.info.page_size;
-    }
-
-    ret = nand_erase_page(&nand, first_page_on_block);
-    if (ret != 0)
-    {
-        return -1;
-    }
-
-    i = page * 2048 + offset;
-
-    while (erase_size != 0)
-    {
-        cache_erase[i] = 0xff;
-        erase_size--;
-        i++;
-    }
-
-    buffer_ptr = cache_erase;
-    for (i = 0; i < nand.info.pages_per_block; i++)
-    {
-        ret = nand_page_write(&nand, first_page_on_block + i, 0, buffer_ptr, nand.info.page_size);
-        if (ret != 0)
+        else
         {
-            return -1;
+            offset = 0;
         }
-        buffer_ptr += nand.info.page_size;
+
+        if (erase_end < blk_end_addr)
+        {
+            length = erase_end - (blk_start_addr + offset);
+        }
+        else
+        {
+            length = blk_end_addr - (blk_start_addr + offset);
+        }
+
+        if ((offset == 0) && (length == block_size))
+        {
+            ret = nand_erase_page(&nand, blk * nand.info.pages_per_block);
+            if (ret != 0)
+            {
+                return -1;
+            }
+        }
+        else
+        {
+            buffer_ptr = cache_erase;
+
+            for (i = 0; i < nand.info.pages_per_block; i++)
+            {
+                ret = nand_page_read(&nand,
+                                     blk * nand.info.pages_per_block + i,
+                                     0,
+                                     buffer_ptr,
+                                     nand.info.page_size);
+                if (ret != 0)
+                {
+                    return -1;
+                }
+
+                buffer_ptr += nand.info.page_size;
+            }
+
+            ret = nand_erase_page(&nand, blk * nand.info.pages_per_block);
+            if (ret != 0)
+            {
+                return -1;
+            }
+
+            for (index = 0; index < length; index++)
+            {
+                cache_erase[offset + index] = 0xFF;
+            }
+
+            buffer_ptr = cache_erase;
+
+            for (i = 0; i < nand.info.pages_per_block; i++)
+            {
+                ret = nand_page_write(&nand,
+                                      blk * nand.info.pages_per_block + i,
+                                      0,
+                                      buffer_ptr,
+                                      nand.info.page_size);
+                if (ret != 0)
+                {
+                    return -1;
+                }
+
+                buffer_ptr += nand.info.page_size;
+            }
+        }
     }
 
     return 0;
@@ -179,6 +226,102 @@ struct partition_dev_ops partition_nand_ops =
     .erase = partition_nand_erase,
 };
 
+static int partiton_func(int argc, char **argv)
+{
+    int ret = 0;
+    char *option;
+    char *part_name;
+    char buf[16];
+    int i = 0;
+    int offset;
+    int len;
+
+    if (argc < 2)
+    {
+        show_partition_info();
+        return 0;
+    }
+
+    option = argv[1];
+
+    if (xstrncmp(option, "help", sizeof("help")) == 0)
+    {
+        s_printf("Usage: \r\n");
+        s_printf(" show help info     - help \r\n");
+        s_printf(" read partiton data - read <partition name> <offset> <len>\r\n");
+    }
+
+    if (xstrncmp(option, "read", sizeof("read")) == 0)
+    {
+        if (argc < 5)
+        {
+            s_printf("Usage : \r\n");
+            s_printf("partition read <partition name> <offset> <len>\r\n");
+        }
+        else
+        {
+            part_name = argv[2];
+
+            ret = xstrtol(argv[3], &offset);
+            if (ret != 0)
+            {
+                s_printf("Invalid offset: %s\r\n", argv[3]);
+            }
+
+            ret = xstrtol(argv[4], &len);
+            if (ret != 0)
+            {
+                s_printf("Invalid len: %s\r\n", argv[4]);
+            }
+
+            while (len)
+            {
+                if (len >= sizeof(buf))
+                {
+                    ret = partition_read(part_name, buf, offset, sizeof(buf));
+                    if (ret != 0)
+                    {
+                        s_printf("read patition %s offset %d err.\r\n", part_name, offset);
+                        return -1;
+                    }
+                    offset += sizeof(buf);
+                    len    -= sizeof(buf);
+                    for (i = 0; i < sizeof(buf); i++)
+                    {
+                        s_printf("%02x ", buf[i]);
+                    }
+                    s_printf("\r\n");
+                }
+                else
+                {
+                    ret = partition_read(part_name, buf, offset, len);
+                    if (ret != 0)
+                    {
+                        s_printf("read patition %s offset %d err.\r\n", part_name, offset);
+                        return -1;
+                    }
+                    len = 0;
+                    for (i = 0; i < len; i++)
+                    {
+                        s_printf("%02x ", buf[i]);
+                    }
+                    s_printf("\r\n");
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static struct shell_command partition_cmd =
+{
+    .name = "partition",
+    .desc = "partiton options",
+    .func = partiton_func,
+    .next = SHELL_NULL,
+};
+
 int partition_nand_register(void)
 {
     char *dev_name = "nand_flash";
@@ -190,12 +333,13 @@ int partition_nand_register(void)
         return -1;
     }
 
-    ret  = partition_register("boot0",       dev_name, 0 * 2048,    512 * 2048);
-    ret += partition_register("boot1",       dev_name, 512 * 2048,  512 * 2048);
-    ret += partition_register("Application", dev_name, 1024 * 2048, 512 * 2048);
-    ret += partition_register("Download",    dev_name, 1536 * 2048, 512 * 2048);
-    ret += partition_register("Factory",     dev_name, 2048 * 2048, 512 * 2048);
-    ret += partition_register("LittleFs",    dev_name, 2560 * 2048, 2024 * 2048);
+    ret  = partition_register("boot0",       dev_name, 0 * 2048,    512 * 2048); /* 2M first boot           */
+    ret += partition_register("boot1",       dev_name, 512 * 2048,  512 * 2048); /* 2M second boot/ota      */
+    ret += partition_register("APP1",        dev_name, 1024 * 2048, 512 * 2048); /* 2M application img 1    */
+    ret += partition_register("APP2",        dev_name, 1536 * 2048, 512 * 2048); /* 2M application img 2    */
+    ret += partition_register("Download",    dev_name, 2048 * 2048, 512 * 2048); /* 2M application download */
+    ret += partition_register("Param",       dev_name, 2560 * 2048,  60 * 2048); /* ota parameters */
+    // ret += partition_register("LittleFs",    dev_name, 2560 * 2048, 2024 * 2048);
 
     if (ret != 0)
     {
@@ -203,6 +347,8 @@ int partition_nand_register(void)
     }
 
     show_partition_info();
+
+    shell_register_command(&partition_cmd);
 
     return 0;
 }

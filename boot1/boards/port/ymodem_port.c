@@ -1,10 +1,9 @@
-#include "ymodem.h"
+#include "ymodem_port.h"
 #include "drv_uart.h"
 #include "board.h"
-#include "shell.h"
 
-extern struct uart_handle uart0;
-static struct uart_handle uart1 =
+// extern struct uart_handle uart0;
+struct uart_handle uart1 =
 {
     .base     = UART1_BASE_ADDR,
     .irq      = UART1_IRQ,
@@ -32,17 +31,17 @@ static struct uart_handle uart1 =
     },
 };
 
-static void ymodem_uart_putc(void *arg, char c)
+static void ymodem_uart_putc(char c)
 {
-    struct uart_handle *uart = (struct uart_handle *)arg;
+    struct uart_handle *uart = &uart1;
 
     uart_putc(uart, c);
 }
 
-static int ymodem_uart_getc(void *arg, char *ch, unsigned int timeout)
+static int ymodem_uart_getc(char *ch, unsigned int timeout)
 {
     int c = 0;
-    struct uart_handle *uart = (struct uart_handle *)arg;
+    struct uart_handle *uart = &uart1;
 
     while (timeout--)
     {
@@ -58,6 +57,12 @@ static int ymodem_uart_getc(void *arg, char *ch, unsigned int timeout)
     return -1;
 }
 
+ymdoem_port_t ymodem_port =
+{
+    .ymodem_getchar = ymodem_uart_getc,
+    .ymodem_putchar = ymodem_uart_putc,
+};
+
 int ymodem_register(void)
 {
     int ret = 0;
@@ -70,5 +75,5 @@ int ymodem_register(void)
         return 0;
     }
 
-    return ymodem_init(ymodem_uart_putc, &uart1, ymodem_uart_getc, &uart1);
+    return ymodem_init(&ymodem_port);
 }

@@ -52,8 +52,6 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/boards/aw_boot_lib
     ${CMAKE_SOURCE_DIR}/boards/include
     ${CMAKE_SOURCE_DIR}/lib
-    ${CMAKE_SOURCE_DIR}/memheap
-    ${CMAKE_SOURCE_DIR}/partition
 )
 
 # 添加源文件
@@ -62,8 +60,6 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/boards/aw_boot_lib/*.c"
     "${CMAKE_SOURCE_DIR}/boards/aw_boot_lib/*.S"
     "${CMAKE_SOURCE_DIR}/lib/*.c"
-    "${CMAKE_SOURCE_DIR}/memheap/*.c"
-    "${CMAKE_SOURCE_DIR}/partition/*.c"
 )
 
 # 构建目标

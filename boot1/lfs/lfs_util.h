@@ -39,7 +39,7 @@
 #endif
 
 /* User include */
-#include "shell.h"
+#include "shell/shell.h"
 #include "memheap.h"
 
 /* User Define */

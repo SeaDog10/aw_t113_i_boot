@@ -52,11 +52,9 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/boards
     ${CMAKE_SOURCE_DIR}/boards/port
     ${CMAKE_SOURCE_DIR}/libcpu
-    ${CMAKE_SOURCE_DIR}/shell
     ${CMAKE_SOURCE_DIR}/memheap
-    ${CMAKE_SOURCE_DIR}/partition
+    ${CMAKE_SOURCE_DIR}/ota
     ${CMAKE_SOURCE_DIR}/lfs
-    ${CMAKE_SOURCE_DIR}/ymodem
 )
 
 # 添加源文件
@@ -66,11 +64,12 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/boards/port/*.c"
     "${CMAKE_SOURCE_DIR}/libcpu/*.c"
     "${CMAKE_SOURCE_DIR}/libcpu/*.S"
-    "${CMAKE_SOURCE_DIR}/shell/*.c"
     "${CMAKE_SOURCE_DIR}/memheap/*.c"
-    "${CMAKE_SOURCE_DIR}/partition/*.c"
     "${CMAKE_SOURCE_DIR}/lfs/*.c"
-    "${CMAKE_SOURCE_DIR}/ymodem/*.c"
+    "${CMAKE_SOURCE_DIR}/ota/*.c"
+    "${CMAKE_SOURCE_DIR}/ota/partition/*.c"
+    "${CMAKE_SOURCE_DIR}/ota/shell/*.c"
+    "${CMAKE_SOURCE_DIR}/ota/ymodem/*.c"
 )
 
 # 构建目标

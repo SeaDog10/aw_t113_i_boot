@@ -9,10 +9,8 @@
 #include "littlefs_port.h"
 #include "lfs.h"
 #include "partition_port.h"
-#include "partition.h"
 #include "memheap.h"
-#include "shell.h"
-#include "ymodem.h"
+#include "ota.h"
 
 struct uart_handle uart0 = {
     .base     = UART0_BASE_ADDR,
@@ -159,69 +157,124 @@ static struct shell_command clk_cmd =
     .next = SHELL_NULL,
 };
 
-static lfs_file_t file;
+// static lfs_file_t file;
 
-static int lfs_test(int argc, char **argv)
+// static int lfs_test(int argc, char **argv)
+// {
+//     int ret = 0;
+//     char boot_count = 0;
+
+//     ret = lfs_file_open(&nand_lfs, &file, "boot_count", LFS_O_RDWR | LFS_O_CREAT);
+//     if (ret != 0)
+//     {
+//         s_printf("lfs file open failed\r\n");
+//         return -1;
+//     }
+//     else
+//     {
+//         s_printf("lfs file open success\r\n");
+//     }
+
+//     ret = lfs_file_read(&nand_lfs, &file, &boot_count, 1);
+//     s_printf("lfs file read %d\r\n", ret);
+
+//     boot_count++;
+
+//     ret = lfs_file_rewind(&nand_lfs, &file);
+//     if (ret != 0)
+//     {
+//         s_printf("lfs file rewind failed\r\n");
+//         return -1;
+//     }
+//     else
+//     {
+//         s_printf("lfs file rewind success\r\n");
+//     }
+
+//     ret = lfs_file_write(&nand_lfs, &file, &boot_count, 1);
+//     s_printf("lfs file write %d\r\n", ret);
+
+//     ret = lfs_file_close(&nand_lfs, &file);
+//     if (ret != 0)
+//     {
+//         s_printf("lfs file close failed\r\n");
+//         return -1;
+//     }
+//     else
+//     {
+//         s_printf("lfs file close success\r\n");
+//     }
+
+//     s_printf("boot_count: %d\n", boot_count);
+
+//     return 0;
+// }
+
+// static struct shell_command lfs_cmd =
+// {
+//     .name = "lfs_tset",
+//     .desc = "test lfs function",
+//     .func = lfs_test,
+//     .next = SHELL_NULL,
+// };
+
+static int boot_app(int argc, char **argv)
 {
-    int ret = 0;
-    char boot_count = 0;
+    app_entry_t entry = U_NULL;
 
-    ret = lfs_file_open(&nand_lfs, &file, "boot_count", LFS_O_RDWR | LFS_O_CREAT);
-    if (ret != 0)
+    entry = ota_boot();
+
+    if (entry != U_NULL)
     {
-        s_printf("lfs file open failed\r\n");
-        return -1;
+        s_printf("entry addr 0x%x\r\n", entry);
+        mmu_disable();
+        dcache_disable();
+        icache_disable();
+        interrupt_disable();
+        entry();
     }
     else
     {
-        s_printf("lfs file open success\r\n");
+        s_printf("ota_boot err.\r\n");
     }
-
-    ret = lfs_file_read(&nand_lfs, &file, &boot_count, 1);
-    s_printf("lfs file read %d\r\n", ret);
-
-    boot_count++;
-
-    ret = lfs_file_rewind(&nand_lfs, &file);
-    if (ret != 0)
-    {
-        s_printf("lfs file rewind failed\r\n");
-        return -1;
-    }
-    else
-    {
-        s_printf("lfs file rewind success\r\n");
-    }
-
-    ret = lfs_file_write(&nand_lfs, &file, &boot_count, 1);
-    s_printf("lfs file write %d\r\n", ret);
-
-    ret = lfs_file_close(&nand_lfs, &file);
-    if (ret != 0)
-    {
-        s_printf("lfs file close failed\r\n");
-        return -1;
-    }
-    else
-    {
-        s_printf("lfs file close success\r\n");
-    }
-
-    s_printf("boot_count: %d\n", boot_count);
 
     return 0;
 }
-static struct shell_command lfs_cmd =
+
+static struct shell_command ota_boot_cmd =
 {
-    .name = "lfs_tset",
-    .desc = "test lfs function",
-    .func = lfs_test,
+    .name = "ota_boot",
+    .desc = "boot app from partition",
+    .func = boot_app,
+    .next = SHELL_NULL,
+};
+
+static int download_app(int argc, char **argv)
+{
+    int ret = 0;
+
+    ret = ota_download();
+    if (ret != 0)
+    {
+        s_printf("ota_download err.\r\n");
+    }
+
+    return 0;
+}
+
+static struct shell_command ota_download_cmd =
+{
+    .name = "ota_download",
+    .desc = "download app to partition with ymdoem",
+    .func = download_app,
     .next = SHELL_NULL,
 };
 
 int main(void)
 {
     int ret = 0;
+    int count = 5;
+    app_entry_t entry = U_NULL;
 
     interrupt_disable();
     interrupt_init();
@@ -255,20 +308,56 @@ int main(void)
         s_printf("partition nand register failed\r\n");
     }
 
-    ret = drv_lfs_mount();
-    if (ret != 0)
-    {
-        s_printf("lfs mount failed %d\r\n", ret);
-    }
+    // ret = drv_lfs_mount();
+    // if (ret != 0)
+    // {
+    //     s_printf("lfs mount failed %d\r\n", ret);
+    // }
 
     shell_register_command(&free_cmd);
     shell_register_command(&clk_cmd);
-    shell_register_command(&lfs_cmd);
+    // shell_register_command(&lfs_cmd);
+    shell_register_command(&ota_download_cmd);
+    shell_register_command(&ota_boot_cmd);
 
-    while(1)
+    s_printf("Press any key to procee shell ");
+    while(count)
     {
-        shell_servise();
+        if (uart_getc(&uart0) != -1)
+        {
+            s_printf("\r\n");
+            while(1)
+            {
+                shell_servise();
+            }
+        }
+        else
+        {
+            s_printf(".");
+            ms_delay(1000);
+        }
+        count--;
     }
-}
 
+    entry = ota_boot();
+
+    if (entry != U_NULL)
+    {
+        s_printf("entry addr 0x%x\r\n", entry);
+        mmu_disable();
+        dcache_disable();
+        icache_disable();
+        interrupt_disable();
+        entry();
+    }
+    else
+    {
+        s_printf("ota_boot err.\r\n");
+        while(1)
+        {
+            shell_servise();
+        }
+    }
+
+}
 

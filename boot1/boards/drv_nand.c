@@ -1,5 +1,4 @@
 #include "drv_nand.h"
-#include "shell.h"
 
 /* nand flash operation code */
 enum
@@ -429,10 +428,10 @@ int nand_page_read(struct spi_nand_handle *nand, unsigned int page, unsigned int
         return ret;
     }
 
-    if (val & 0x20)
-    {
-        return -1;
-    }
+    // if (val & 0x20)
+    // {
+    //     return -1;
+    // }
 
     return 0;
 }

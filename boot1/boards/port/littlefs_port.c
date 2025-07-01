@@ -1,6 +1,6 @@
 #include "littlefs_port.h"
 #include "memheap.h"
-#include "shell.h"
+#include "shell/shell.h"
 
 extern struct spi_nand_handle nand;
 
