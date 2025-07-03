@@ -1,6 +1,7 @@
 #include "ymodem_port.h"
 #include "drv_uart.h"
 #include "board.h"
+#include "shell/shell.h"
 
 // extern struct uart_handle uart0;
 struct uart_handle uart1 =

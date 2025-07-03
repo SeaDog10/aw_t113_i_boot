@@ -5,12 +5,17 @@
 #include "drv_iomux.h"
 #include "drv_clk.h"
 #include "shell_port.h"
+#include "partition_port.h"
 #include "ymodem_port.h"
 #include "littlefs_port.h"
 #include "lfs.h"
-#include "partition_port.h"
 #include "memheap.h"
-#include "ota.h"
+
+#include "shell/shell.h"
+#include "ymodem/ymodem.h"
+#include "partition/partition.h"
+#include "ota/ota.h"
+#include "boot/boot.h"
 
 struct uart_handle uart0 = {
     .base     = UART0_BASE_ADDR,
@@ -218,11 +223,13 @@ static struct shell_command clk_cmd =
 //     .next = SHELL_NULL,
 // };
 
+typedef void (*app_entry_t)(void);
+
 static int boot_app(int argc, char **argv)
 {
     app_entry_t entry = U_NULL;
 
-    entry = ota_boot();
+    entry = boot_firmware();
 
     if (entry != U_NULL)
     {
@@ -235,7 +242,7 @@ static int boot_app(int argc, char **argv)
     }
     else
     {
-        s_printf("ota_boot err.\r\n");
+        s_printf("boot err.\r\n");
     }
 
     return 0;
@@ -253,7 +260,7 @@ static int download_app(int argc, char **argv)
 {
     int ret = 0;
 
-    ret = ota_download();
+    ret = ota_download_firmware();
     if (ret != 0)
     {
         s_printf("ota_download err.\r\n");
@@ -267,6 +274,48 @@ static struct shell_command ota_download_cmd =
     .name = "ota_download",
     .desc = "download app to partition with ymdoem",
     .func = download_app,
+    .next = SHELL_NULL,
+};
+
+static int update_app(int argc, char **argv)
+{
+    int ret = 0;
+
+    ret = ota_update_firmware();
+    if (ret != 0)
+    {
+        s_printf("ota_update err.\r\n");
+    }
+
+    return 0;
+}
+
+static struct shell_command ota_update_cmd =
+{
+    .name = "ota_update",
+    .desc = "update app from download partition",
+    .func = update_app,
+    .next = SHELL_NULL,
+};
+
+static int backup_app(int argc, char **argv)
+{
+    int ret = 0;
+
+    ret = ota_backup_firmware();
+    if (ret != 0)
+    {
+        s_printf("ota_backup err.\r\n");
+    }
+
+    return 0;
+}
+
+static struct shell_command ota_backup_cmd =
+{
+    .name = "ota_backup",
+    .desc = "backup app to the last",
+    .func = backup_app,
     .next = SHELL_NULL,
 };
 
@@ -319,6 +368,8 @@ int main(void)
     // shell_register_command(&lfs_cmd);
     shell_register_command(&ota_download_cmd);
     shell_register_command(&ota_boot_cmd);
+    shell_register_command(&ota_update_cmd);
+    shell_register_command(&ota_backup_cmd);
 
     s_printf("Press any key to procee shell ");
     while(count)
@@ -339,7 +390,8 @@ int main(void)
         count--;
     }
 
-    entry = ota_boot();
+    s_printf("\r\n");
+    entry = boot_firmware();
 
     if (entry != U_NULL)
     {

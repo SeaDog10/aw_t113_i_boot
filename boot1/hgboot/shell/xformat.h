@@ -39,7 +39,7 @@
 #define XCFG_FORMAT_LONGLONG 0
 #endif
 
-unsigned xvformat(void (*outchar)(void *arg, char), void *arg, const char *fmt, va_list args);
-unsigned xformat(void (*outchar)(void *arg, char), void *arg, const char *fmt, ...);
+unsigned xvformat(void (*outchar)(char), const char *fmt, va_list args);
+unsigned xformat(void (*outchar)(char), const char *fmt, ...);
 
-#endif
+#endif /* __XFORMAT_H__ */

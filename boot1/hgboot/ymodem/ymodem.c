@@ -1,19 +1,51 @@
-#include "ymodem.h"
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
 
-#define YMODEM_NULL     0x00
-#define YMODEM_SOH      0x01
-#define YMODEM_STX      0x02
-#define YMODEM_EOT      0x04
-#define YMODEM_ACK      0x06
-#define YMODEM_NAK      0x15
-#define YMODEM_CAN      0x18
-#define YMODEM_C        0x43
+#include "ymodem/ymodem.h"
+
+#if YMODEM_LOG_LEVEL > YMODEM_LOG_NONE
+#include "shell/shell.h"
+#endif
+
+#if YMODEM_LOG_LEVEL >= YMODEM_LOG_TRACE
+#define YM_TRACE(format, ...) do{s_printf("[T]");s_printf(format, ##__VA_ARGS__);}while (0)
+#else
+#define YM_TRACE(format, ...)
+#endif
+
+#if YMODEM_LOG_LEVEL >= YMODEM_LOG_DEBUG
+#define YM_DEBUG(format, ...) do{s_printf("[D]");s_printf(format, ##__VA_ARGS__);}while (0)
+#else
+#define YM_DEBUG(format, ...)
+#endif
+
+#if YMODEM_LOG_LEVEL >= YMODEM_LOG_INFO
+#define YM_INFO(format, ...) do{s_printf("[I]");s_printf(format, ##__VA_ARGS__);}while (0)
+#else
+#define YM_INFO(format, ...)
+#endif
+
+#if YMODEM_LOG_LEVEL >= YMODEM_LOG_WARN
+#define YM_WARN(format, ...) do{s_printf("[W]");s_printf(format, ##__VA_ARGS__);}while (0)
+#else
+#define YM_WARN(format, ...)
+#endif
+
+#if YMODEM_LOG_LEVEL >= YMODEM_LOG_ERROR
+#define YM_ERR(format, ...) do{s_printf("[E]");s_printf(format, ##__VA_ARGS__);}while (0)
+#else
+#define YM_ERR(format, ...)
+#endif
 
 #define PACKET_SIZE_128 (128)
-
-#ifdef SUPPORT_1K
 #define PACKET_SIZE_1K  (1024)
-#endif
 
 struct ymodem_frame
 {
@@ -26,6 +58,18 @@ struct ymodem_frame
     char crc_h;
     char crc_l;
     int file_size;
+};
+
+enum ymodem_cmd
+{
+    YMODEM_NULL= 0x00,
+    YMODEM_SOH = 0x01,
+    YMODEM_STX = 0x02,
+    YMODEM_EOT = 0x04,
+    YMODEM_ACK = 0x06,
+    YMODEM_NAK = 0x15,
+    YMODEM_CAN = 0x18,
+    YMODEM_C   = 0x43,
 };
 
 ymodem_callback_t *y_cb = YMODEM_NULL;
@@ -119,14 +163,22 @@ static int ymodem_strtol(const char *str, int n, int *out)
     return 0;
 }
 
+/**
+ * @brief Initialize the YMODEM port.
+ * @param port Pointer to the YMODEM port structure.
+ * @return YMODEM_OK on success, YMODEM_ERR_PARAM if port is NULL.
+ */
 int ymodem_init(ymdoem_port_t *port)
 {
     if (port == YMODEM_NULL)
     {
+        YM_ERR("ymodem init err.port is NULL\r\n");
         return YMODEM_ERR_PARAM;
     }
 
     y_port = port;
+
+    YM_TRACE("ymodem init success\r\n");
 
     return YMODEM_OK;
 }
@@ -182,6 +234,7 @@ static int ymodem_receive_packet(struct ymodem_frame *frame, int retries)
         if ((frame->pack_num ^ frame->pack_mask) != 0xFF)
         {
             retries--;
+            YM_TRACE("ymdoem recive pack number err.\r\n");
             y_port->ymodem_putchar(YMODEM_NAK);
             continue;
         }
@@ -218,6 +271,7 @@ static int ymodem_receive_packet(struct ymodem_frame *frame, int retries)
         if (recv_crc != calc_crc)
         {
             retries--;
+            YM_TRACE("ymdoem recive data crc check err.\r\n");
             y_port->ymodem_putchar(YMODEM_NAK);
             continue;
         }
@@ -225,9 +279,16 @@ static int ymodem_receive_packet(struct ymodem_frame *frame, int retries)
         return YMODEM_OK;
     }
 
+    YM_WARN("ymodem recieve err. Retry attempts exhausted\r\n");
+
     return YMODEM_ERR_TIMEOUT;
 }
 
+/**
+ * @brief Receive a file using the YMODEM protocol.
+ * @param callback Pointer to the YMODEM callback structure.
+ * @return YMODEM_OK on success, error code otherwise.
+ */
 int ymodem_receive(ymodem_callback_t *callback)
 {
     int begin_recv = 0;
@@ -239,16 +300,17 @@ int ymodem_receive(ymodem_callback_t *callback)
 
     if (callback == YMODEM_NULL || y_port == YMODEM_NULL)
     {
+        YM_ERR("ymdoem recieve err. callback or y_port is NULL\r\n");
         return YMODEM_ERR_PARAM;
     }
 
     y_cb = callback;
     cache_frame.buf = buffer_cache;
 
-    for (i = 0; i < MAX_RETRY; i++)
+    for (i = 0; i < YMDOEM_MAX_RETRY; i++)
     {
         y_port->ymodem_putchar(YMODEM_C);
-        if (ymodem_receive_packet(&cache_frame, MAX_RETRY) == 0)
+        if (ymodem_receive_packet(&cache_frame, YMDOEM_MAX_RETRY) == 0)
         {
             begin_recv = 1;
             break;
@@ -260,7 +322,10 @@ int ymodem_receive(ymodem_callback_t *callback)
         if (y_cb->ymodem_abort)
         {
             y_cb->ymodem_abort(YMODEM_ERR_TIMEOUT);
+            YM_TRACE("ymdoem recive call user abort func done\r\n");
         }
+
+        YM_ERR("ymodem recieve err. can not get the first pack\r\n");
         return YMODEM_ERR_TIMEOUT;
     }
 
@@ -288,7 +353,10 @@ int ymodem_receive(ymodem_callback_t *callback)
         if (y_cb->ymodem_abort)
         {
             y_cb->ymodem_abort(YMODEM_ERR_HEADER);
+            YM_TRACE("ymdoem recive call user abort func done\r\n");
         }
+
+        YM_ERR("ymodem recieve err. the first pack has err\r\n");
         return YMODEM_ERR_HEADER;
     }
 
@@ -298,7 +366,10 @@ int ymodem_receive(ymodem_callback_t *callback)
         y_head.name_len  = fname_len;
         y_head.file_size = cache_frame.file_size;
         y_cb->ymodem_start(&y_head);
+        YM_TRACE("ymdoem recive call user start func done\r\n");
     }
+
+    YM_INFO("ymodem recive file %s, size %u bytes\r\n", cache_frame.buf, cache_frame.file_size);
 
     y_port->ymodem_putchar(YMODEM_ACK);
     y_port->ymodem_putchar(YMODEM_C);
@@ -307,12 +378,15 @@ int ymodem_receive(ymodem_callback_t *callback)
 
     while (cache_frame.file_size > 0)
     {
-        if (ymodem_receive_packet(&cache_frame, MAX_RETRY) != 0)
+        if (ymodem_receive_packet(&cache_frame, YMDOEM_MAX_RETRY) != 0)
         {
             if (y_cb->ymodem_abort)
             {
                 y_cb->ymodem_abort(YMODEM_ERR_DATA);
+                YM_TRACE("ymdoem recive call user abort func done\r\n");
             }
+
+            YM_ERR("ymdoem recive err. can not get the data pack\r\n");
             return YMODEM_ERR_DATA;
         }
 
@@ -322,6 +396,7 @@ int ymodem_receive(ymodem_callback_t *callback)
         if (y_cb->ymodem_recv_data)
         {
             y_cb->ymodem_recv_data(&y_data);
+            YM_TRACE("ymdoem recive call user recv data func done\r\n");
         }
 
         y_data.offset += cache_frame.pkg_size;
@@ -330,20 +405,22 @@ int ymodem_receive(ymodem_callback_t *callback)
         y_port->ymodem_putchar(YMODEM_ACK);
     }
 
-    if (ymodem_receive_packet(&cache_frame, MAX_RETRY) == YMODEM_EOT)
+    if (ymodem_receive_packet(&cache_frame, YMDOEM_MAX_RETRY) == YMODEM_EOT)
     {
         y_port->ymodem_putchar(YMODEM_NAK);
-        if (ymodem_receive_packet(&cache_frame, MAX_RETRY) == YMODEM_EOT)
+        if (ymodem_receive_packet(&cache_frame, YMDOEM_MAX_RETRY) == YMODEM_EOT)
         {
+            YM_TRACE("ymodem recive the last pack\r\n");
             y_port->ymodem_putchar(YMODEM_ACK);
             y_port->ymodem_putchar(YMODEM_C);
-            if (ymodem_receive_packet(&cache_frame, MAX_RETRY) == 0)
+            if (ymodem_receive_packet(&cache_frame, YMDOEM_MAX_RETRY) == 0)
             {
                 for (i = 0; i < cache_frame.pkg_size; i++)
                 {
                     if (cache_frame.buf[i] != 0x00)
                     {
                         end_err = 1;
+                        YM_TRACE("ymodem recive last pack data err.\r\n");
                         break;
                     }
                 }
@@ -354,20 +431,26 @@ int ymodem_receive(ymodem_callback_t *callback)
                     if (y_cb->ymodem_finish)
                     {
                         y_cb->ymodem_finish();
-                        y_port->ymodem_putchar(RECV_END_CHAR);
+                        YM_TRACE("ymdoem recive call user finish func done\r\n");
                     }
+                    y_port->ymodem_putchar(RECV_END_CHAR);
+                    YM_TRACE("ymodem put end char to transfer done\r\n");
                 }
                 else
                 {
                     if (y_cb->ymodem_abort)
                     {
                         y_cb->ymodem_abort(YMODEM_ERR_EOT);
+                        YM_TRACE("ymdoem recive call user abort func done\r\n");
                     }
+
+                    YM_ERR("ymodem recive the last pack err.\r\n");
                     return YMODEM_ERR_EOT;
                 }
             }
         }
     }
 
+    YM_INFO("ymodem recive done\r\n");
     return YMODEM_OK;
 }
