@@ -220,7 +220,7 @@ static int partition_nand_erase(unsigned int addr, unsigned int size)
     return 0;
 }
 
-struct partition_dev_ops partition_nand_ops =
+static struct partition_dev_ops partition_nand_ops =
 {
     .init = partition_nand_init,
     .read = partition_nand_read,
@@ -329,18 +329,18 @@ int partition_nand_register(void)
     char *dev_name = "nand_flash";
     int ret = 0;
 
-    ret = partition_device_register(dev_name, &partition_nand_ops, nand.info.blocks_total * nand.info.pages_per_block * nand.info.page_size, nand.info.page_size);
+    ret = partition_device_register(dev_name, &partition_nand_ops, nand.info.blocks_total * nand.info.pages_per_block * nand.info.page_size);
     if (ret != 0)
     {
         return -1;
     }
 
-    ret  = partition_register("boot0",       dev_name, 0 * 2048,    512 * 2048); /* 2M first boot           */
-    ret += partition_register("boot1",       dev_name, 512 * 2048,  512 * 2048); /* 2M second boot/ota      */
-    ret += partition_register("APP1",        dev_name, 1024 * 2048, 512 * 2048); /* 2M application img 1    */
-    ret += partition_register("APP2",        dev_name, 1536 * 2048, 512 * 2048); /* 2M application img 2    */
-    ret += partition_register("Download",    dev_name, 2048 * 2048, 512 * 2048); /* 2M application download */
-    ret += partition_register("Param",       dev_name, 2560 * 2048,  60 * 2048); /* ota parameters */
+    ret  = partition_register("boot0",    dev_name, 0 * 2048,    512 * 2048); /* 2M first boot           */
+    ret += partition_register("boot1",    dev_name, 512 * 2048,  512 * 2048); /* 2M second boot/ota      */
+    ret += partition_register("APP1",     dev_name, 1024 * 2048, 512 * 2048); /* 2M application img 1    */
+    ret += partition_register("APP2",     dev_name, 1536 * 2048, 512 * 2048); /* 2M application img 2    */
+    ret += partition_register("Download", dev_name, 2048 * 2048, 512 * 2048); /* 2M application download */
+    ret += partition_register("Param",    dev_name, 2560 * 2048,  60 * 2048); /* ota parameters */
     // ret += partition_register("LittleFs",    dev_name, 2560 * 2048, 2024 * 2048);
 
     if (ret != 0)

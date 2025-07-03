@@ -40,7 +40,6 @@ struct partition_device
 {
     char name[PARTITION_DEV_NAME_MAX];
     unsigned int size;
-    unsigned int block_size;
     struct partition_dev_ops *ops;
     unsigned int id;
 };
@@ -174,7 +173,7 @@ static struct partition *partition_find(const char *name)
     return PARTITION_NULL;
 }
 
-int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size, unsigned int block_size)
+int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size)
 {
     if (dev_name == PARTITION_NULL || ops == PARTITION_NULL)
     {
@@ -204,12 +203,11 @@ int partition_device_register(const char *dev_name, struct partition_dev_ops *op
     }
 
     partition_dev_table[partition_dev_num].size = size;
-    partition_dev_table[partition_dev_num].block_size = block_size;
     partition_dev_table[partition_dev_num].ops = ops;
     partition_dev_table[partition_dev_num].id = partition_dev_num;
     partition_dev_num++;
 
-    PART_INFO("partition device %s registered, size: 0x%x, block: 0x%x\r\n", dev_name, size, block_size);
+    PART_INFO("partition device %s registered, size: 0x%x\r\n", dev_name, size);
 
     return PARTITION_OK;
 }

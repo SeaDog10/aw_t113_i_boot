@@ -1,5 +1,5 @@
-#ifndef __HG_BOOT_H__
-#define __HG_BOOT_H__
+#ifndef __BOOT_H__
+#define __BOOT_H__
 
 #include "ota/ota.h"
 #include "partition/partition.h"

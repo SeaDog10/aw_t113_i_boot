@@ -66,11 +66,11 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/libcpu/*.S"
     "${CMAKE_SOURCE_DIR}/memheap/*.c"
     "${CMAKE_SOURCE_DIR}/lfs/*.c"
-    "${CMAKE_SOURCE_DIR}/hgboot/*.c"
     "${CMAKE_SOURCE_DIR}/hgboot/partition/*.c"
     "${CMAKE_SOURCE_DIR}/hgboot/shell/*.c"
     "${CMAKE_SOURCE_DIR}/hgboot/ymodem/*.c"
     "${CMAKE_SOURCE_DIR}/hgboot/ota/*.c"
+    "${CMAKE_SOURCE_DIR}/hgboot/boot/*.c"
 )
 
 # 构建目标

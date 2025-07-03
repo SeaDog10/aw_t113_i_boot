@@ -26,15 +26,15 @@ typedef enum
     PARTITION_ERR_UNKNOWN = -6,
 }partition_errcode_t;
 
-struct partition_dev_ops
+typedef struct partition_dev_ops
 {
     int (*init) (void);
     int (*read) (unsigned int addr, unsigned char *buf, unsigned int size);
     int (*write)(unsigned int addr, unsigned char  *buf, unsigned int size);
     int (*erase)(unsigned int addr, unsigned int size);
-};
+}partition_dev_ops_t;
 
-int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size, unsigned int block_size);
+int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size);
 int partition_device_unregister(const char *dev_name);
 int partition_device_init(const char *dev_name);
 

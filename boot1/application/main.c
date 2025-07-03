@@ -10,7 +10,12 @@
 #include "littlefs_port.h"
 #include "lfs.h"
 #include "memheap.h"
-#include "hgboot.h"
+
+#include "shell/shell.h"
+#include "ymodem/ymodem.h"
+#include "partition/partition.h"
+#include "ota/ota.h"
+#include "boot/boot.h"
 
 struct uart_handle uart0 = {
     .base     = UART0_BASE_ADDR,

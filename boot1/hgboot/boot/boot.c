@@ -1,4 +1,4 @@
-#include "hgboot.h"
+#include "boot.h"
 
 #define HGBOOT_NULL     0
 
