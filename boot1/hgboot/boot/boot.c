@@ -1,3 +1,13 @@
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
+
 #include "boot.h"
 
 #define HGBOOT_NULL     0
@@ -82,6 +92,20 @@ unsigned int boot_crc32_update(unsigned int crc, const unsigned char *data, unsi
     return crc;
 }
 
+/*
+ * Function: boot_firmware
+ * -----------------------
+ * Loads and verifies the firmware to be executed.
+ *
+ * This function reads OTA parameters from the parameter partition to determine which firmware slot is active.
+ * It then reads the firmware header and verifies its magic number and CRC32 checksum.
+ * If verification fails, it attempts to backup/rollback the firmware and retries up to BOOT_MAX_RETRY times.
+ * If all checks pass, it loads the firmware into memory, verifies the CRC32 of the loaded image,
+ * and returns the firmware's execution address. If any step fails after all retries, it returns HGBOOT_NULL.
+ *
+ * Returns:
+ *   void* - The execution address of the firmware on success, or HGBOOT_NULL on failure.
+ */
 void *boot_firmware(void)
 {
     int ret                       = 0;

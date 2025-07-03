@@ -1,38 +1,40 @@
 #ifndef _PARTITION_H_
 #define _PARTITION_H_
 
-#define PARTITION_DEV_NAME_MAX    16
-#define PARTITION_NAME_MAX        16
-#define PARTITION_DEV_MAX         5
-#define PARTITION_MAX             20
+#define PARTITION_DEV_NAME_MAX    16    /* Maximum length of partition device name (including null terminator) */
+#define PARTITION_NAME_MAX        16    /* Maximum length of partition name (including null terminator) */
+#define PARTITION_DEV_MAX         5     /* Maximum number of partition devices supported */
+#define PARTITION_MAX             20    /* Maximum number of partitions supported */
 
-#define PARTITION_LOG_NONE     0
-#define PARTITION_LOG_ERROR    1
-#define PARTITION_LOG_WARN     2
-#define PARTITION_LOG_INFO     3
-#define PARTITION_LOG_DEBUG    4
-#define PARTITION_LOG_TRACE    5
+#define PARTITION_LOG_NONE     0        /* Partition log level: no output */
+#define PARTITION_LOG_ERROR    1        /* Partition log level: error output */
+#define PARTITION_LOG_WARN     2        /* Partition log level: warning output */
+#define PARTITION_LOG_INFO     3        /* Partition log level: informational output */
+#define PARTITION_LOG_DEBUG    4        /* Partition log level: debug output */
+#define PARTITION_LOG_TRACE    5        /* Partition log level: trace output */
 
-#define PARTITION_LOG_LEVEL    PARTITION_LOG_ERROR
+#define PARTITION_LOG_LEVEL    PARTITION_LOG_ERROR    /* Set the current partition log level */
 
+/* Error codes for partition operations. */
 typedef enum
 {
-    PARTITION_OK          =  0,
-    PARTITION_ERR_PARAM   = -1,
-    PARTITION_ERR_SIZE    = -2,
-    PARTITION_ERR_FULL    = -3,
-    PARTITION_ERR_EXIST   = -4,
-    PARTITION_ERR_NOEXIST = -5,
-    PARTITION_ERR_UNKNOWN = -6,
-}partition_errcode_t;
+    PARTITION_OK          =  0,  /* Operation successful */
+    PARTITION_ERR_PARAM   = -1,  /* Invalid parameter */
+    PARTITION_ERR_SIZE    = -2,  /* Size error */
+    PARTITION_ERR_FULL    = -3,  /* Partition table full */
+    PARTITION_ERR_EXIST   = -4,  /* Partition/device already exists */
+    PARTITION_ERR_NOEXIST = -5,  /* Partition/device does not exist */
+    PARTITION_ERR_UNKNOWN = -6,  /* Unknown error */
+} partition_errcode_t; /* partition_errcode_t: Error codes for partition operations. */
 
+/* Device operation structure for partition device abstraction. Users should implement these low-level functions for their storage device. */
 typedef struct partition_dev_ops
 {
-    int (*init) (void);
-    int (*read) (unsigned int addr, unsigned char *buf, unsigned int size);
-    int (*write)(unsigned int addr, unsigned char  *buf, unsigned int size);
-    int (*erase)(unsigned int addr, unsigned int size);
-}partition_dev_ops_t;
+    int (*init) (void);                                              /* Initialize the device */
+    int (*read) (unsigned int addr, unsigned char *buf, unsigned int size);   /* Read data from device */
+    int (*write)(unsigned int addr, unsigned char  *buf, unsigned int size);  /* Write data to device */
+    int (*erase)(unsigned int addr, unsigned int size);                      /* Erase data on device */
+} partition_dev_ops_t; /* partition_dev_ops_t: Device operation structure for partition device abstraction. */
 
 int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size);
 int partition_device_unregister(const char *dev_name);
@@ -48,4 +50,4 @@ int partition_erase_all(const char *partition_name);
 
 void show_partition_info(void);
 
-#endif
+#endif /* _PARTITION_H_ */

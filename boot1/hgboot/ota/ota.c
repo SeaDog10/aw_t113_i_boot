@@ -1,3 +1,13 @@
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
+
 #include "ota/ota.h"
 
 #define OTA_NULL        0
@@ -120,6 +130,18 @@ static ymodem_callback_t ota_ymdoem_cb =
     .ymodem_finish    = ota_ymodem_finish,
 };
 
+/*
+ * Function: ota_download_firmware
+ * ------------------------------
+ * Receives firmware via YMODEM, writes it to the download partition, and verifies its integrity.
+ * Updates OTA parameters after successful download and CRC check.
+ *
+ * Returns:
+ *   0 on success,
+ *   OTA_ERR_PARTITION if partition operation fails,
+ *   OTA_ERR_DOWNLOAD if YMODEM receive fails,
+ *   OTA_ERR_CHECK if CRC or magic check fails.
+ */
 int ota_download_firmware(void)
 {
     int ret                       = 0;
@@ -238,6 +260,18 @@ int ota_download_firmware(void)
     return 0;
 }
 
+/*
+ * Function: ota_update_firmware
+ * ----------------------------
+ * Updates the active firmware partition with the downloaded firmware if an upgrade is ready.
+ * Handles partition erase, data copy, and OTA parameter updates.
+ *
+ * Returns:
+ *   0 on success,
+ *   OTA_ERR_PARTITION if partition operation fails,
+ *   OTA_ERR_CHECK if parameter or CRC check fails,
+ *   OTA_ERR_UPDATE if no firmware needs to be updated.
+ */
 int ota_update_firmware(void)
 {
     int ret                       = 0;
@@ -404,6 +438,18 @@ exit:
     return ret;
 }
 
+/*
+ * Function: ota_backup_firmware
+ * ----------------------------
+ * Rolls back to the previous firmware slot if backup is allowed by OTA parameters.
+ * Updates OTA parameters accordingly.
+ *
+ * Returns:
+ *   0 on success,
+ *   OTA_ERR_PARTITION if partition operation fails,
+ *   OTA_ERR_CHECK if parameter check fails,
+ *   OTA_ERR_BACKUP if backup is not allowed.
+ */
 int ota_backup_firmware(void)
 {
     int ret                       = 0;

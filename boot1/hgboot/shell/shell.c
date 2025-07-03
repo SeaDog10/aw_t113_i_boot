@@ -1,3 +1,13 @@
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
+
 #include "shell/shell.h"
 
 struct shell_input
@@ -630,6 +640,12 @@ void shell_register_command(struct shell_command *cmd)
     cmd->next = SHELL_NULL;
 }
 
+/**
+ * @brief Initialize the shell with the specified port and head tag.
+ * @param port Pointer to the shell_port_t structure.
+ * @param sheel_headtag Head tag string to display at shell startup.
+ * @return 0 on success, -1 on failure.
+ */
 int shell_init(shell_port_t *port, const char *sheel_headtag)
 {
     int i = 0;
@@ -664,6 +680,10 @@ int shell_init(shell_port_t *port, const char *sheel_headtag)
     return 0;
 }
 
+/**
+ * @brief Deinitialize the shell and return the previous port.
+ * @return Pointer to the previous shell_port_t structure.
+ */
 shell_port_t *shell_deinit(void)
 {
     shell_port_t *temp = s_port;
@@ -673,6 +693,9 @@ shell_port_t *shell_deinit(void)
     return temp;
 }
 
+/**
+ * @brief Shell service routine, handles input and command processing.
+ */
 void shell_servise(void)
 {
     char ch;
@@ -689,6 +712,11 @@ void shell_servise(void)
     }
 }
 
+/**
+ * @brief Print formatted output to the shell.
+ * @param fmt Format string.
+ * @param ... Variable arguments for formatting.
+ */
 void s_printf(const char *fmt, ...)
 {
     va_list args;

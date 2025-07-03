@@ -1,5 +1,24 @@
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
+
 #include "shell/xstring.h"
 
+#define X_NULL 0
+
+/**
+ * @brief Set a block of memory to a specified value.
+ * @param dst Pointer to the destination memory block.
+ * @param val Value to set.
+ * @param cnt Number of bytes to set.
+ * @return Pointer to the destination memory block.
+ */
 void *xmemset(void *dst, int val, int cnt)
 {
     char *d = (char *)dst;
@@ -12,6 +31,13 @@ void *xmemset(void *dst, int val, int cnt)
     return dst;
 }
 
+/**
+ * @brief Compare two memory blocks.
+ * @param dst Pointer to the first memory block.
+ * @param src Pointer to the second memory block.
+ * @param cnt Number of bytes to compare.
+ * @return 0 if equal, otherwise the difference between the first differing bytes.
+ */
 int xmemcmp(const void *dst, const void *src, unsigned int cnt)
 {
     const char *d = (const char *)dst;
@@ -23,6 +49,11 @@ int xmemcmp(const void *dst, const void *src, unsigned int cnt)
     return r;
 }
 
+/**
+ * @brief Get the length of a string.
+ * @param str Pointer to the string.
+ * @return Length of the string (excluding the null terminator).
+ */
 unsigned int xstrlen(const char *str)
 {
     int i = 0;
@@ -32,6 +63,12 @@ unsigned int xstrlen(const char *str)
     return i - 1;
 }
 
+/**
+ * @brief Copy a string.
+ * @param dst Pointer to the destination buffer.
+ * @param src Pointer to the source string.
+ * @return Pointer to the destination buffer.
+ */
 char *xstrcpy(char *dst, const char *src)
 {
     char *bak = dst;
@@ -41,6 +78,13 @@ char *xstrcpy(char *dst, const char *src)
     return bak;
 }
 
+/**
+ * @brief Copy a string with a maximum length.
+ * @param dst Pointer to the destination buffer.
+ * @param src Pointer to the source string.
+ * @param n Maximum number of bytes to copy.
+ * @return Pointer to the destination buffer.
+ */
 char *xstrncpy(char *dst, const char *src, unsigned int n)
 {
     char *bak = dst;
@@ -64,6 +108,12 @@ char *xstrncpy(char *dst, const char *src, unsigned int n)
     return bak;
 }
 
+/**
+ * @brief Concatenate two strings.
+ * @param dst Pointer to the destination buffer.
+ * @param src Pointer to the source string.
+ * @return Pointer to the destination buffer.
+ */
 char *xstrcat(char *dst, const char *src)
 {
     char *p = dst;
@@ -78,6 +128,12 @@ char *xstrcat(char *dst, const char *src)
     return p;
 }
 
+/**
+ * @brief Compare two strings.
+ * @param p1 Pointer to the first string.
+ * @param p2 Pointer to the second string.
+ * @return 0 if equal, <0 if p1 < p2, >0 if p1 > p2.
+ */
 int xstrcmp(const char *p1, const char *p2)
 {
     unsigned char c1, c2;
@@ -95,6 +151,13 @@ int xstrcmp(const char *p1, const char *p2)
     return 0;
 }
 
+/**
+ * @brief Compare two strings up to a specified length.
+ * @param p1 Pointer to the first string.
+ * @param p2 Pointer to the second string.
+ * @param cnt Maximum number of bytes to compare.
+ * @return 0 if equal, <0 if p1 < p2, >0 if p1 > p2.
+ */
 int xstrncmp(const char *p1, const char *p2, unsigned int cnt)
 {
     unsigned char c1, c2;
@@ -118,6 +181,12 @@ int xstrncmp(const char *p1, const char *p2, unsigned int cnt)
     return 0;
 }
 
+/**
+ * @brief Locate the first occurrence of a character in a string.
+ * @param s Pointer to the string.
+ * @param c Character to locate.
+ * @return Pointer to the found character, or X_NULL if not found.
+ */
 char *xstrchr(const char *s, int c)
 {
     for (; *s != (char)c; ++s)
@@ -131,6 +200,12 @@ char *xstrchr(const char *s, int c)
     return (char *)s;
 }
 
+/**
+ * @brief Locate a substring in a string.
+ * @param s1 Pointer to the main string.
+ * @param s2 Pointer to the substring.
+ * @return Pointer to the first occurrence of s2 in s1, or X_NULL if not found.
+ */
 char *xstrstr(const char *s1, const char *s2)
 {
     register const char *s = s1;
@@ -159,6 +234,13 @@ char *xstrstr(const char *s1, const char *s2)
     } while (1);
 }
 
+/**
+ * @brief Locate the first occurrence of a value in a memory block.
+ * @param src Pointer to the memory block.
+ * @param val Value to locate.
+ * @param cnt Number of bytes to search.
+ * @return Pointer to the found value, or X_NULL if not found.
+ */
 void *xmemchr(void *src, int val, unsigned int cnt)
 {
     char *p = X_NULL;
@@ -178,6 +260,13 @@ void *xmemchr(void *src, int val, unsigned int cnt)
     return p;
 }
 
+/**
+ * @brief Move a block of memory, handling overlap.
+ * @param dst Pointer to the destination memory block.
+ * @param src Pointer to the source memory block.
+ * @param cnt Number of bytes to move.
+ * @return Pointer to the destination memory block.
+ */
 void *xmemmove(void *dst, const void *src, unsigned int cnt)
 {
     char *p, *s;
@@ -204,6 +293,12 @@ void *xmemmove(void *dst, const void *src, unsigned int cnt)
     return dst;
 }
 
+/**
+ * @brief Convert a string to a long integer.
+ * @param str Pointer to the string.
+ * @param out Pointer to the output integer.
+ * @return 0 on success, negative value on error.
+ */
 int xstrtol(const char *str, int *out)
 {
     int base = 10;

@@ -1,3 +1,13 @@
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
+
 #include "partition/partition.h"
 
 #define PARTITION_NULL            0
@@ -173,6 +183,13 @@ static struct partition *partition_find(const char *name)
     return PARTITION_NULL;
 }
 
+/**
+ * @brief Register a partition device.
+ * @param dev_name Name of the device to register.
+ * @param ops Pointer to the device operation structure.
+ * @param size Size of the device in bytes.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_device_register(const char *dev_name, struct partition_dev_ops *ops, unsigned int size)
 {
     if (dev_name == PARTITION_NULL || ops == PARTITION_NULL)
@@ -212,6 +229,11 @@ int partition_device_register(const char *dev_name, struct partition_dev_ops *op
     return PARTITION_OK;
 }
 
+/**
+ * @brief Unregister a partition device.
+ * @param dev_name Name of the device to unregister.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_device_unregister(const char *dev_name)
 {
     int i = 0;
@@ -255,6 +277,11 @@ int partition_device_unregister(const char *dev_name)
     return PARTITION_OK;
 }
 
+/**
+ * @brief Initialize a partition device.
+ * @param dev_name Name of the device to initialize.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_device_init(const char *dev_name)
 {
     int ret = PARTITION_ERR_UNKNOWN;
@@ -282,6 +309,14 @@ int partition_device_init(const char *dev_name)
     return ret;
 }
 
+/**
+ * @brief Read data from a partition.
+ * @param partition_name Name of the partition.
+ * @param buf Buffer to store read data.
+ * @param offset Offset in the partition to start reading.
+ * @param len Number of bytes to read.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_read(const char *partition_name, void *buf, unsigned int offset, unsigned int len)
 {
     int ret = PARTITION_ERR_UNKNOWN;
@@ -318,6 +353,14 @@ int partition_read(const char *partition_name, void *buf, unsigned int offset, u
     return ret;
 }
 
+/**
+ * @brief Write data to a partition.
+ * @param partition_name Name of the partition.
+ * @param buf Buffer containing data to write.
+ * @param offset Offset in the partition to start writing.
+ * @param len Number of bytes to write.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_write(const char *partition_name, void *buf, unsigned int offset, unsigned int len)
 {
     int ret = PARTITION_ERR_UNKNOWN;
@@ -354,6 +397,13 @@ int partition_write(const char *partition_name, void *buf, unsigned int offset, 
     return ret;
 }
 
+/**
+ * @brief Erase a region of a partition.
+ * @param partition_name Name of the partition.
+ * @param offset Offset in the partition to start erasing.
+ * @param len Number of bytes to erase.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_erase(const char *partition_name, unsigned int offset, unsigned int len)
 {
     int ret = PARTITION_ERR_UNKNOWN;
@@ -390,6 +440,11 @@ int partition_erase(const char *partition_name, unsigned int offset, unsigned in
     return ret;
 }
 
+/**
+ * @brief Erase the entire partition.
+ * @param partition_name Name of the partition.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_erase_all(const char *partition_name)
 {
     int ret = PARTITION_ERR_UNKNOWN;
@@ -420,6 +475,14 @@ int partition_erase_all(const char *partition_name)
     return ret;
 }
 
+/**
+ * @brief Register a partition on a device.
+ * @param partition_name Name of the partition.
+ * @param dev_name Name of the device.
+ * @param start Start address of the partition on the device.
+ * @param size Size of the partition in bytes.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_register(const char *partition_name, const char *dev_name, unsigned int start, unsigned int size)
 {
     struct partition_device *dev = PARTITION_NULL;
@@ -475,6 +538,11 @@ int partition_register(const char *partition_name, const char *dev_name, unsigne
     return PARTITION_OK;
 }
 
+/**
+ * @brief Unregister a partition.
+ * @param partition_name Name of the partition to unregister.
+ * @return PARTITION_OK on success, error code otherwise.
+ */
 int partition_unregister(const char *partition_name)
 {
     int i = 0;
@@ -510,6 +578,9 @@ int partition_unregister(const char *partition_name)
     return PARTITION_OK;
 }
 
+/**
+ * @brief Print partition information to the log.
+ */
 void show_partition_info(void)
 {
     int i = 0;

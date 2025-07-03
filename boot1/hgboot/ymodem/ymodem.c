@@ -1,3 +1,13 @@
+/***************************************************************************
+ * Copyright (c) 2025 HGBOOT Authors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License which is available at
+ * https://opensource.org/licenses/MIT.
+ *
+ * SPDX-License-Identifier: MIT
+ **************************************************************************/
+
 #include "ymodem/ymodem.h"
 
 #if YMODEM_LOG_LEVEL > YMODEM_LOG_NONE
@@ -153,6 +163,11 @@ static int ymodem_strtol(const char *str, int n, int *out)
     return 0;
 }
 
+/**
+ * @brief Initialize the YMODEM port.
+ * @param port Pointer to the YMODEM port structure.
+ * @return YMODEM_OK on success, YMODEM_ERR_PARAM if port is NULL.
+ */
 int ymodem_init(ymdoem_port_t *port)
 {
     if (port == YMODEM_NULL)
@@ -269,6 +284,11 @@ static int ymodem_receive_packet(struct ymodem_frame *frame, int retries)
     return YMODEM_ERR_TIMEOUT;
 }
 
+/**
+ * @brief Receive a file using the YMODEM protocol.
+ * @param callback Pointer to the YMODEM callback structure.
+ * @return YMODEM_OK on success, error code otherwise.
+ */
 int ymodem_receive(ymodem_callback_t *callback)
 {
     int begin_recv = 0;

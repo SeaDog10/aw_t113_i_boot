@@ -1,8 +1,6 @@
 #ifndef __XSTRING_H__
 #define __XSTRING_H__
 
-#define X_NULL 0
-
 void *xmemset(void *dst, int val, int cnt);
 int xmemcmp(const void *dst, const void *src, unsigned int cnt);
 unsigned int xstrlen(const char *str);
@@ -17,4 +15,4 @@ void *xmemchr(void *src, int val, unsigned int cnt);
 void *xmemmove(void *dst, const void *src, unsigned int cnt);
 int xstrtol(const char *str, int *out);
 
-#endif
+#endif /* __XSTRING_H__ */
