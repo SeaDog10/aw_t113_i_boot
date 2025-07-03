@@ -1,4 +1,4 @@
-#include "shell.h"
+#include "shell/shell.h"
 
 struct shell_input
 {
@@ -33,10 +33,7 @@ static struct shell_command shell_cmd_list =
 static struct shell_input   shell_in    = {0};
 static struct shell_history shell_his   = {0};
 
-static void (*outputchar)(void *, char) = SHELL_NULL;
-static char (*inputchar)(void *)        = SHELL_NULL;
-static void *outputchar_arg             = SHELL_NULL;
-static void *inputchar_arg              = SHELL_NULL;
+shell_port_t *s_port = SHELL_NULL;
 
 /* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
 static int echo(int argc, char **argv);
@@ -49,11 +46,11 @@ static void show_prompt(void)
     int i = 0;
     char *str = SHELL_PROMPT;
 
-    outputchar(outputchar_arg, '\r');
+    s_port->shell_putchar('\r');
 
     for (i = 0; i < SHEEL_PROMPT_SIZE; i++)
     {
-        outputchar(outputchar_arg, str[i]);
+        s_port->shell_putchar(str[i]);
     }
 }
 
@@ -63,16 +60,16 @@ static void show_unknown_cmd(char *arg)
 
     for ( ;(str != SHELL_NULL) && (*str != '\0'); str++)
     {
-        outputchar(outputchar_arg, *str);
+        s_port->shell_putchar(*str);
     }
 
     for ( ;(arg != SHELL_NULL) && (*arg != '\0'); arg++)
     {
-        outputchar(outputchar_arg, *arg);
+        s_port->shell_putchar(*arg);
     }
 
-    outputchar(outputchar_arg, '\r');
-    outputchar(outputchar_arg, '\n');
+    s_port->shell_putchar('\r');
+    s_port->shell_putchar('\n');
 }
 
 static void redraw_input(struct shell_input *input)
@@ -84,18 +81,18 @@ static void redraw_input(struct shell_input *input)
 
     for(i = 0; i < input->length; i++)
     {
-        outputchar(outputchar_arg, input->buffer[i]);
+        s_port->shell_putchar(input->buffer[i]);
     }
 
-    outputchar(outputchar_arg, ' ');
-    outputchar(outputchar_arg, '\b');
+    s_port->shell_putchar(' ');
+    s_port->shell_putchar('\b');
 
     back = input->length - input->pos;
     while(back--)
     {
-        outputchar(outputchar_arg, 0x1b);
-        outputchar(outputchar_arg, '[');
-        outputchar(outputchar_arg, 'D');
+        s_port->shell_putchar(0x1b);
+        s_port->shell_putchar('[');
+        s_port->shell_putchar('D');
     }
 }
 
@@ -140,7 +137,7 @@ static void browse_history_up(struct shell_history *history, struct shell_input 
 
     for(i = 0; i < input->length; i++)
     {
-        outputchar(outputchar_arg, '\b');
+        s_port->shell_putchar('\b');
     }
 
     if(history->current != 0)
@@ -157,11 +154,11 @@ static void browse_history_up(struct shell_history *history, struct shell_input 
         {
             if(i < (history->max_len + SHEEL_PROMPT_SIZE))
             {
-                outputchar(outputchar_arg, ' ');
+                s_port->shell_putchar(' ');
             }
             else
             {
-                outputchar(outputchar_arg, '\b');
+                s_port->shell_putchar('\b');
             }
         }
     }
@@ -180,7 +177,7 @@ static void browse_history_down(struct shell_history *history, struct shell_inpu
 
     for(i = 0; i < input->length; i++)
     {
-        outputchar(outputchar_arg, '\b');
+        s_port->shell_putchar('\b');
     }
 
     if(history->current + 1 != history->count)
@@ -198,11 +195,11 @@ static void browse_history_down(struct shell_history *history, struct shell_inpu
         {
             if(i < (history->max_len + SHEEL_PROMPT_SIZE))
             {
-                outputchar(outputchar_arg, ' ');
+                s_port->shell_putchar(' ');
             }
             else
             {
-                outputchar(outputchar_arg, '\b');
+                s_port->shell_putchar('\b');
             }
         }
     }
@@ -301,8 +298,8 @@ static void console_input_char(struct shell_input *input, struct shell_history *
 
         if (ch == '\r' || ch == '\n')
         {
-            outputchar(outputchar_arg, '\r');
-            outputchar(outputchar_arg, '\n');
+            s_port->shell_putchar('\r');
+            s_port->shell_putchar('\n');
             input->buffer[input->length] = '\0';
             if (input->length > 0)
             {
@@ -330,8 +327,8 @@ static void console_input_char(struct shell_input *input, struct shell_history *
 
             if (prefix_len == 0)
             {
-                outputchar(outputchar_arg, '\r');
-                outputchar(outputchar_arg, '\n');
+                s_port->shell_putchar('\r');
+                s_port->shell_putchar('\n');
                 help(0, SHELL_NULL);
                 show_prompt();
                 redraw_input(input);
@@ -380,8 +377,8 @@ static void console_input_char(struct shell_input *input, struct shell_history *
             }
             else if (match_count > 1)
             {
-                outputchar(outputchar_arg, '\r');
-                outputchar(outputchar_arg, '\n');
+                s_port->shell_putchar('\r');
+                s_port->shell_putchar('\n');
                 cmd_list = shell_cmd_list.next;
 
                 while (cmd_list)
@@ -390,17 +387,17 @@ static void console_input_char(struct shell_input *input, struct shell_history *
                     {
                         for (i = 0; cmd_list->name[i] != '\0'; i++)
                         {
-                            outputchar(outputchar_arg, cmd_list->name[i]);
+                            s_port->shell_putchar(cmd_list->name[i]);
                         }
-                        outputchar(outputchar_arg, '\r');
-                        outputchar(outputchar_arg, '\n');
+                        s_port->shell_putchar('\r');
+                        s_port->shell_putchar('\n');
                     }
                     cmd_list = cmd_list->next;
                 }
 
                 input->length = input->pos;
-                outputchar(outputchar_arg, '\r');
-                outputchar(outputchar_arg, '\n');
+                s_port->shell_putchar('\r');
+                s_port->shell_putchar('\n');
                 show_prompt();
                 redraw_input(input);
             }
@@ -415,17 +412,17 @@ static void console_input_char(struct shell_input *input, struct shell_history *
                 xmemmove(&input->buffer[input->pos - 1], &input->buffer[input->pos],
                         input->length - input->pos + 1);
 
-                outputchar(outputchar_arg, '\b');
+                s_port->shell_putchar('\b');
                 for (i = (input->pos - 1); i < input->length; i++)
                 {
-                    outputchar(outputchar_arg, input->buffer[i]);
+                    s_port->shell_putchar(input->buffer[i]);
                 }
-                outputchar(outputchar_arg, ' ');
-                outputchar(outputchar_arg, '\b');
+                s_port->shell_putchar(' ');
+                s_port->shell_putchar('\b');
 
                 for(i = 0; i < (input->length - input->pos); i++)
                 {
-                    outputchar(outputchar_arg, '\b');
+                    s_port->shell_putchar('\b');
                 }
                 input->pos--;
                 input->length--;
@@ -450,17 +447,17 @@ static void console_input_char(struct shell_input *input, struct shell_history *
             {
                 for (i = (input->pos - 1); input->buffer[i] != '\0'; i++)
                 {
-                    outputchar(outputchar_arg, input->buffer[i]);
+                    s_port->shell_putchar(input->buffer[i]);
                 }
 
                 for (i = 0; i < input->length - input->pos; i++)
                 {
-                    outputchar(outputchar_arg, '\b');
+                    s_port->shell_putchar('\b');
                 }
             }
             else
             {
-                outputchar(outputchar_arg, ch);
+                s_port->shell_putchar(ch);
             }
         }
     }
@@ -488,18 +485,18 @@ static void console_input_char(struct shell_input *input, struct shell_history *
             case 'C': // Right arrow key
                 if (input->pos < input->length)
                 {
-                    outputchar(outputchar_arg, 0x1b);
-                    outputchar(outputchar_arg, '[');
-                    outputchar(outputchar_arg, 'C');
+                    s_port->shell_putchar(0x1b);
+                    s_port->shell_putchar('[');
+                    s_port->shell_putchar('C');
                     input->pos++;
                 }
                 break;
             case 'D': // Left arrow key
                 if (input->pos > 0)
                 {
-                    outputchar(outputchar_arg, 0x1b);
-                    outputchar(outputchar_arg, '[');
-                    outputchar(outputchar_arg, 'D');
+                    s_port->shell_putchar(0x1b);
+                    s_port->shell_putchar('[');
+                    s_port->shell_putchar('D');
                     input->pos--;
                 }
                 break;
@@ -633,43 +630,30 @@ void shell_register_command(struct shell_command *cmd)
     cmd->next = SHELL_NULL;
 }
 
-void s_printf(const char *fmt, ...)
-{
-    if (outputchar == SHELL_NULL)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, fmt);
-    xvformat(outputchar, outputchar_arg, fmt, args);
-    va_end(args);
-}
-
-int shell_init(void (*outchar_func)(void *, char), void *outarg,
-    char (*inputchar_func)(void *), void *inarg, const char *sheel_headtag)
+int shell_init(shell_port_t *port, const char *sheel_headtag)
 {
     int i = 0;
 
-    if (outchar_func == SHELL_NULL || inputchar_func == SHELL_NULL)
+    if (port == SHELL_NULL || s_port->shell_putchar == SHELL_NULL || s_port->shell_getchar == SHELL_NULL)
     {
+        s_port = SHELL_NULL;
         return -1;
     }
 
-    outputchar      = outchar_func;
-    outputchar_arg  = outarg;
-    inputchar       = inputchar_func;
-    inputchar_arg   = inarg;
+    s_port = port;
 
-    if(sheel_headtag)
+    if (s_port->shell_putchar)
     {
-        for (i = 0; sheel_headtag[i] != '\0'; i++)
+        if(sheel_headtag)
         {
-            outchar_func(outarg, sheel_headtag[i]);
+            for (i = 0; sheel_headtag[i] != '\0'; i++)
+            {
+                s_port->shell_putchar(sheel_headtag[i]);
+            }
         }
-    }
 
-    show_prompt();
+        show_prompt();
+    }
 
 /* >>>>>>>>>>>>>>>>>cmds<<<<<<<<<<<<<<<<<<<<<<<<< */
     shell_register_command(&help_cmd);
@@ -680,19 +664,41 @@ int shell_init(void (*outchar_func)(void *, char), void *outarg,
     return 0;
 }
 
+shell_port_t *shell_deinit(void)
+{
+    shell_port_t *temp = s_port;
+
+    s_port = SHELL_NULL;
+
+    return temp;
+}
+
 void shell_servise(void)
 {
     char ch;
 
-    if (inputchar_arg == SHELL_NULL || outputchar_arg == SHELL_NULL)
+    if (s_port == SHELL_NULL || s_port->shell_putchar == SHELL_NULL || s_port->shell_getchar == SHELL_NULL)
     {
         return;
     }
 
-    ch = inputchar(inputchar_arg);
+    ch = s_port->shell_getchar();
     if (ch >= 0)
     {
         console_input_char(&shell_in, &shell_his, ch);
     }
 }
 
+void s_printf(const char *fmt, ...)
+{
+    va_list args;
+
+    if (s_port == SHELL_NULL || s_port->shell_putchar == SHELL_NULL)
+    {
+        return;
+    }
+
+    va_start(args, fmt);
+    xvformat(s_port->shell_putchar, fmt, args);
+    va_end(args);
+}

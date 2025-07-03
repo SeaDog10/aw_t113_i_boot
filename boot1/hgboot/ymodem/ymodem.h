@@ -1,11 +1,20 @@
 #ifndef __YMODEM_H__
 #define __YMODEM_H__
 
-#define MAX_RETRY       100
-
 #define SUPPORT_1K
 
-#define RECV_END_CHAR   0x4f
+#define YMDOEM_MAX_RETRY    100
+
+#define RECV_END_CHAR       0x4f
+
+#define YMODEM_LOG_NONE     0
+#define YMODEM_LOG_ERROR    1
+#define YMODEM_LOG_WARN     2
+#define YMODEM_LOG_INFO     3
+#define YMODEM_LOG_DEBUG    4
+#define YMODEM_LOG_TRACE    5
+
+#define YMODEM_LOG_LEVEL    YMODEM_LOG_ERROR
 
 typedef enum
 {
@@ -19,7 +28,7 @@ typedef enum
     YMODEM_ERR_EOT     = -7,
     YMODEM_ERR_ABORTED = -8,
     YMODEM_ERR_UNKNOWN = -9,
-}ymodem_errcode;
+}ymodem_errcode_t;
 
 typedef struct ymodem_head
 {
@@ -39,7 +48,7 @@ typedef struct ymodem_callback
 {
     void (*ymodem_start)(ymodem_head_t *head);
     void (*ymodem_recv_data)(ymodem_data_t *data);
-    void (*ymodem_abort)(ymodem_errcode err);
+    void (*ymodem_abort)(ymodem_errcode_t err);
     void (*ymodem_finish)(void);
 } ymodem_callback_t;
 

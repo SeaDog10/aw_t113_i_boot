@@ -6,6 +6,26 @@
 #define PARTITION_DEV_MAX         5
 #define PARTITION_MAX             20
 
+#define PARTITION_LOG_NONE     0
+#define PARTITION_LOG_ERROR    1
+#define PARTITION_LOG_WARN     2
+#define PARTITION_LOG_INFO     3
+#define PARTITION_LOG_DEBUG    4
+#define PARTITION_LOG_TRACE    5
+
+#define PARTITION_LOG_LEVEL    PARTITION_LOG_ERROR
+
+typedef enum
+{
+    PARTITION_OK          =  0,
+    PARTITION_ERR_PARAM   = -1,
+    PARTITION_ERR_SIZE    = -2,
+    PARTITION_ERR_FULL    = -3,
+    PARTITION_ERR_EXIST   = -4,
+    PARTITION_ERR_NOEXIST = -5,
+    PARTITION_ERR_UNKNOWN = -6,
+}partition_errcode_t;
+
 struct partition_dev_ops
 {
     int (*init) (void);

@@ -12,22 +12,18 @@ static const char *start_logo =
  |  __  | | |_ |______|  _ <| |  | | |  | | | |       \r\n\
  | |  | | |__| |      | |_) | |__| | |__| | | |       \r\n\
  |_|  |_|\\_____|      |____/ \\____/ \\____/  |_|    \r\n\
- version:V0.0.2\r\n";
+ version:V1.0.0\r\n";
 
-static void shell_uart_putc(void *arg, char c)
+static void shell_uart_putc(char c)
 {
-    struct uart_handle *uart = (struct uart_handle *)arg;
-
-    uart_putc(uart, c);
+    uart_putc(&uart0, c);
 }
 
-static char shell_uart_getc(void *arg)
+static char shell_uart_getc(void)
 {
     int ret = 0;
 
-    struct uart_handle *uart = (struct uart_handle *)arg;
-
-    ret = uart_getc(uart);
+    ret = uart_getc(&uart0);
 
     if (ret < 0)
     {
@@ -36,6 +32,12 @@ static char shell_uart_getc(void *arg)
 
     return (char)ret;
 }
+
+static shell_port_t shell_port =
+{
+    .shell_putchar = shell_uart_putc,
+    .shell_getchar = shell_uart_getc,
+};
 
 int shell_register(void)
 {
@@ -47,5 +49,5 @@ int shell_register(void)
         return ret;
     }
 
-    return shell_init(shell_uart_putc, &uart0, shell_uart_getc, &uart0, start_logo);
+    return shell_init(&shell_port, start_logo);
 }

@@ -53,7 +53,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/boards/port
     ${CMAKE_SOURCE_DIR}/libcpu
     ${CMAKE_SOURCE_DIR}/memheap
-    ${CMAKE_SOURCE_DIR}/ota
+    ${CMAKE_SOURCE_DIR}/hgboot
     ${CMAKE_SOURCE_DIR}/lfs
 )
 
@@ -66,10 +66,11 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_SOURCE_DIR}/libcpu/*.S"
     "${CMAKE_SOURCE_DIR}/memheap/*.c"
     "${CMAKE_SOURCE_DIR}/lfs/*.c"
-    "${CMAKE_SOURCE_DIR}/ota/*.c"
-    "${CMAKE_SOURCE_DIR}/ota/partition/*.c"
-    "${CMAKE_SOURCE_DIR}/ota/shell/*.c"
-    "${CMAKE_SOURCE_DIR}/ota/ymodem/*.c"
+    "${CMAKE_SOURCE_DIR}/hgboot/*.c"
+    "${CMAKE_SOURCE_DIR}/hgboot/partition/*.c"
+    "${CMAKE_SOURCE_DIR}/hgboot/shell/*.c"
+    "${CMAKE_SOURCE_DIR}/hgboot/ymodem/*.c"
+    "${CMAKE_SOURCE_DIR}/hgboot/ota/*.c"
 )
 
 # 构建目标

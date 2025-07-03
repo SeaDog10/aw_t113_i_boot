@@ -1,4 +1,6 @@
 #include "partition_port.h"
+#include "drv_nand.h"
+#include "shell/shell.h"
 
 extern struct spi_nand_handle nand;
 
