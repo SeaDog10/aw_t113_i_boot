@@ -23,8 +23,8 @@
 
 #define OTA_LOG_LEVEL    YMODEM_LOG_ERROR/* Set the current OTA log level */
 
-#define APP_SLOT_1       0U              /* Application slot 1 index */
-#define APP_SLOT_2       1U              /* Application slot 2 index */
+#define APP_SLOT_1       0xa1U           /* Application slot 1 index */
+#define APP_SLOT_2       0xa2U           /* Application slot 2 index */
 
 /**
  * @enum ota_errcode_t
