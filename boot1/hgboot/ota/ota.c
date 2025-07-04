@@ -12,6 +12,8 @@
 
 #define OTA_NULL        0
 
+#define BACKUP_FLAG     0xbaU
+
 #if OTA_LOG_LEVEL > OTA_LOG_NONE
 #include "shell/shell.h"
 #endif
@@ -165,12 +167,12 @@ int ota_download_firmware(void)
         return OTA_ERR_DOWNLOAD;
     }
 
-    OTA_INFO("ota recv image magic     : 0x%x\r\n", header.magic);
-    OTA_INFO("ota recv image size      : %d\r\n",   header.size);
-    OTA_INFO("ota recv image crc32     : 0x%x\r\n", header.crc32);
-    OTA_INFO("ota recv image version   : 0x%x\r\n", header.version);
-    OTA_INFO("ota recv image load addr : 0x%x\r\n", header.load_addr);
-    OTA_INFO("ota recv image exec addr : 0x%x\r\n", header.exec_addr);
+    OTA_INFO("ota recv image magic     : 0x%08x\r\n", header.magic);
+    OTA_INFO("ota recv image size      : 0x%08x\r\n", header.size);
+    OTA_INFO("ota recv image crc32     : 0x%08x\r\n", header.crc32);
+    OTA_INFO("ota recv image version   : 0x%08x\r\n", header.version);
+    OTA_INFO("ota recv image load addr : 0x%08x\r\n", header.load_addr);
+    OTA_INFO("ota recv image exec addr : 0x%08x\r\n", header.exec_addr);
 
     ret = partition_read(DOWN_PART, (void *)&header, 0, sizeof(struct firmware_header));
     if (ret != 0)
@@ -195,7 +197,7 @@ int ota_download_firmware(void)
             ret = partition_read(DOWN_PART, (void *)cache_buffer, offset, CACHE_SIZE);
             if (ret != 0)
             {
-                OTA_ERR("ota read partition %s from offset %d err. %d\r\n", DOWN_PART, offset);
+                OTA_ERR("ota read partition %s from offset %d err. %d\r\n", DOWN_PART, offset, ret);
                 return OTA_ERR_PARTITION;
             }
             crc32 = ota_crc32_update(crc32, cache_buffer, CACHE_SIZE);
@@ -207,7 +209,7 @@ int ota_download_firmware(void)
             ret = partition_read(DOWN_PART, (void *)cache_buffer, offset, remain_size);
             if (ret != 0)
             {
-                OTA_ERR("ota read partition %s from offset %d err. %d\r\n", DOWN_PART, offset);
+                OTA_ERR("ota read partition %s from offset %d err. %d\r\n", DOWN_PART, offset, ret);
                 return OTA_ERR_PARTITION;
             }
             crc32 = ota_crc32_update(crc32, cache_buffer, remain_size);
@@ -227,7 +229,7 @@ int ota_download_firmware(void)
     ret = partition_read(PARA_PART, (void *)&para, 0, sizeof(struct ota_paramers));
     if (ret != 0)
     {
-        OTA_ERR("ota read partition %s from offset %d err. %d\r\n", PARA_PART, 0);
+        OTA_ERR("ota read partition %s from offset %d err. %d\r\n", PARA_PART, 0, ret);
         return OTA_ERR_PARTITION;
     }
 
@@ -246,14 +248,14 @@ int ota_download_firmware(void)
     ret = partition_erase(PARA_PART, 0, sizeof(struct ota_paramers));
     if (ret != 0)
     {
-        OTA_ERR("ota erase partition %s from offset %d err. %d\r\n", PARA_PART, 0);
+        OTA_ERR("ota erase partition %s from offset %d err. %d\r\n", PARA_PART, 0, ret);
         return OTA_ERR_PARTITION;
     }
 
     ret = partition_write(PARA_PART, (void *)&para, 0, sizeof(struct ota_paramers));
     if (ret != 0)
     {
-        OTA_ERR("ota write partition %s at offset %d err. %d\r\n", PARA_PART, 0);
+        OTA_ERR("ota write partition %s at offset %d err. %d\r\n", PARA_PART, 0, ret);
         return OTA_ERR_PARTITION;
     }
 
@@ -309,7 +311,7 @@ int ota_update_firmware(void)
         ret = partition_read(DOWN_PART, (void *)&header, 0, sizeof(struct firmware_header));
         if (ret != 0)
         {
-            OTA_ERR("ota read partition %s from offset %d err. %d\r\n", DOWN_PART, 0);
+            OTA_ERR("ota read partition %s from offset %d err. %d\r\n", DOWN_PART, 0, ret);
             ret = OTA_ERR_PARTITION;
             goto exit;
         }
@@ -365,7 +367,7 @@ int ota_update_firmware(void)
                 ret = partition_write(part_name, (void *)cache_buffer, offset, CACHE_SIZE);
                 if (ret != 0)
                 {
-                    OTA_ERR("ota write partition %s at offset %d err. %d\r\n", part_name, offset);
+                    OTA_ERR("ota write partition %s at offset %d err. %d\r\n", part_name, offset, ret);
                     ret = OTA_ERR_PARTITION;
                     goto exit;
                 }
@@ -386,7 +388,7 @@ int ota_update_firmware(void)
                 ret = partition_write(part_name, (void *)cache_buffer, offset, remain_size);
                 if (ret != 0)
                 {
-                    OTA_ERR("ota write partition %s at offset %d err. %d\r\n", part_name, offset);
+                    OTA_ERR("ota write partition %s at offset %d err. %d\r\n", part_name, offset, ret);
                     ret = OTA_ERR_PARTITION;
                     goto exit;
                 }
@@ -409,7 +411,7 @@ int ota_update_firmware(void)
             OTA_TRACE("ota switch run partition to %s\r\n", APP1_PART);
         }
 
-        para.can_be_back = 1;
+        para.can_be_back = BACKUP_FLAG;
         ret = OTA_OK;
     }
     else
@@ -424,14 +426,14 @@ exit:
     ret = partition_erase(PARA_PART, 0, sizeof(struct ota_paramers));
     if (ret != 0)
     {
-        OTA_ERR("ota erase partition %s from offset %d err. %d\r\n", PARA_PART, 0);
+        OTA_ERR("ota erase partition %s from offset %d err. %d\r\n", PARA_PART, 0, ret);
         return OTA_ERR_PARTITION;
     }
 
     ret = partition_write(PARA_PART, (void *)&para, 0, sizeof(struct ota_paramers));
     if (ret != 0)
     {
-        OTA_ERR("ota write partition %s at offset %d err. %d\r\n", PARA_PART, 0);
+        OTA_ERR("ota write partition %s at offset %d err. %d\r\n", PARA_PART, 0, ret);
         return OTA_ERR_PARTITION;
     }
 
@@ -453,12 +455,14 @@ exit:
 int ota_backup_firmware(void)
 {
     int ret                       = 0;
+    int can_backup                = 0;
     struct ota_paramers para      = {0};
+    struct firmware_header header = {0};
 
     ret = partition_read(PARA_PART, (void *)&para, 0, sizeof(struct ota_paramers));
     if (ret != 0)
     {
-        OTA_ERR("ota read partition %s from offset %d err. %d\r\n", PARA_PART, 0);
+        OTA_ERR("ota read partition %s from offset %d err. %d\r\n", PARA_PART, 0, ret);
         return OTA_ERR_PARTITION;
     }
 
@@ -476,33 +480,76 @@ int ota_backup_firmware(void)
         return OTA_ERR_CHECK;
     }
 
-    if (para.can_be_back)
+    if (para.can_be_back == BACKUP_FLAG)
     {
         para.can_be_back = 0;
         para.upgrade_ready = 0;
+
         if (para.active_slot == APP_SLOT_1)
         {
-            para.active_slot = APP_SLOT_2;
-            OTA_TRACE("ota will backup firmware from partition %s\r\n", APP2_PART);
+            OTA_TRACE("ota try to backup firmware from partition %s\r\n", APP2_PART);
+            ret = partition_read(APP2_PART, (void *)&header, 0, sizeof(struct firmware_header));
+            if (ret != 0)
+            {
+                OTA_ERR("ota read partition %s from offset %d err. %d\r\n", APP2_PART, 0, ret);
+                can_backup = 0;
+            }
+            else
+            {
+                if (header.magic != OTA_FIRMWARE_MAGIC)
+                {
+                    OTA_ERR("ota backup firmware err. magic 0x%x != 0x%x\r\n.", header.magic, OTA_FIRMWARE_MAGIC);
+                    can_backup = 0;
+                }
+                else
+                {
+                    para.active_slot = APP_SLOT_2;
+                    can_backup = 1;
+                }
+            }
         }
         else
         {
-            para.active_slot = APP_SLOT_1;
-            OTA_TRACE("ota will backup firmware from partition %s\r\n", APP1_PART);
+            OTA_TRACE("ota try to backup firmware from partition %s\r\n", APP1_PART);
+            ret = partition_read(APP1_PART, (void *)&header, 0, sizeof(struct firmware_header));
+            if (ret != 0)
+            {
+                OTA_ERR("ota read partition %s from offset %d err. %d\r\n", APP1_PART, 0, ret);
+                can_backup = 0;
+            }
+            else
+            {
+                if (header.magic != OTA_FIRMWARE_MAGIC)
+                {
+                    OTA_ERR("ota backup firmware err. magic 0x%x != 0x%x\r\n.", header.magic, OTA_FIRMWARE_MAGIC);
+                    can_backup = 0;
+                }
+                else
+                {
+                    para.active_slot = APP_SLOT_1;
+                    can_backup = 1;
+                }
+            }
         }
 
         ret = partition_erase(PARA_PART, 0, sizeof(struct ota_paramers));
         if (ret != 0)
         {
-            OTA_ERR("ota erase partition %s from offset %d err. %d\r\n", PARA_PART, 0);
+            OTA_ERR("ota erase partition %s from offset %d err. %d\r\n", PARA_PART, 0, ret);
             return OTA_ERR_PARTITION;
         }
 
         ret = partition_write(PARA_PART, (void *)&para, 0, sizeof(struct ota_paramers));
         if (ret != 0)
         {
-            OTA_ERR("ota write partition %s at offset %d err. %d\r\n", PARA_PART, 0);
+            OTA_ERR("ota write partition %s at offset %d err. %d\r\n", PARA_PART, 0, ret);
             return OTA_ERR_PARTITION;
+        }
+
+        if (can_backup == 0)
+        {
+            OTA_ERR("ota backup firmware err. please download and update firmware.\r\n");
+            return OTA_ERR_BACKUP;
         }
     }
     else
@@ -511,5 +558,5 @@ int ota_backup_firmware(void)
         return OTA_ERR_BACKUP;
     }
 
-    return 0;
+    return OTA_OK;
 }
