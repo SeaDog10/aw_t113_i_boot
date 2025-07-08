@@ -7,6 +7,8 @@
 /* RT-Thread Kernel */
 
 #define RT_NAME_MAX 8
+#define RT_USING_SMP
+#define RT_CPUS_NR 2
 #define RT_ALIGN_SIZE 4
 #define RT_THREAD_PRIORITY_32
 #define RT_THREAD_PRIORITY_MAX 32
@@ -16,7 +18,8 @@
 #define RT_HOOK_USING_FUNC_PTR
 #define RT_USING_IDLE_HOOK
 #define RT_IDLE_HOOK_LIST_SIZE 4
-#define IDLE_THREAD_STACK_SIZE 1024
+#define IDLE_THREAD_STACK_SIZE 4096
+#define SYSTEM_THREAD_STACK_SIZE 4096
 #define RT_USING_TIMER_SOFT
 #define RT_TIMER_THREAD_PRIO 4
 #define RT_TIMER_THREAD_STACK_SIZE 1024
@@ -54,7 +57,7 @@
 #define RT_USING_CONSOLE
 #define RT_CONSOLEBUF_SIZE 256
 #define RT_CONSOLE_DEVICE_NAME "uart0"
-#define RT_VER_NUM 0x40100
+#define RT_VER_NUM 0x40101
 #define ARCH_ARM
 #define RT_USING_CPU_FFS
 #define ARCH_ARM_CORTEX_A
@@ -136,6 +139,9 @@
 
 #define RT_USING_SAL
 #define SAL_INTERNET_CHECK
+
+/* Docking with protocol stacks */
+
 #define SAL_USING_POSIX
 #define RT_USING_NETDEV
 #define NETDEV_USING_IFCONFIG
@@ -194,6 +200,13 @@
 
 /* tools packages */
 
+#define PKG_USING_COREMARK
+#define COREMARK_ITERATIONS 64000
+
+/* You may ajust this number to make sure the benchmark runs for at least 10s */
+
+#define PKG_USING_COREMARK_LATEST_VERSION
+#define CORE_MARK_HAS_FLOAT 0
 
 /* system packages */
 
@@ -285,5 +298,11 @@
 /* Onboard Peripheral Drivers */
 
 #define RT_USING_UART0
+#define COREMARK_USE_MULTITHREAD
+#define COREMARK_HAS_FLOAT 0
+
+/* You may ajust this number to make sure the benchmark runs for at least 10s */
+
+#define PKG_USING_COREMARK_V100
 
 #endif

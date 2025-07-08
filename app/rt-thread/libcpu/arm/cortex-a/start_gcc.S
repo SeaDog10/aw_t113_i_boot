@@ -29,18 +29,8 @@
 .equ RT_IRQ_STACK_PGSZ,  0x00000800
 .equ USR_Stack_Size,     0x00000400
 
-.equ SUB_UND_Stack_Size,     0x00000400
-.equ SUB_SVC_Stack_Size,     0x00000400
-.equ SUB_ABT_Stack_Size,     0x00000400
-.equ SUB_RT_FIQ_STACK_PGSZ,  0x00000000
-.equ SUB_RT_IRQ_STACK_PGSZ,  0x00000400
-.equ SUB_USR_Stack_Size,     0x00000400
-
 #define ISR_Stack_Size  (UND_Stack_Size + SVC_Stack_Size + ABT_Stack_Size + \
                  RT_FIQ_STACK_PGSZ + RT_IRQ_STACK_PGSZ)
-
-#define SUB_ISR_Stack_Size  (SUB_UND_Stack_Size + SUB_SVC_Stack_Size + SUB_ABT_Stack_Size + \
-                 SUB_RT_FIQ_STACK_PGSZ + SUB_RT_IRQ_STACK_PGSZ)
 
 .section .bss.share.isr
 /* stack */
@@ -81,6 +71,19 @@ continue:
     /* set the cpu to SVC32 mode and disable interrupt */
     cps #Mode_SVC
 
+    /* invalid tlb before enable mmu */
+    mrc p15, 0, r0, c1, c0, 0
+    bic r0, #1
+    mcr p15, 0, r0, c1, c0, 0
+    dsb
+    isb
+    mov r0, #0
+    mcr p15, 0, r0, c8, c7, 0
+    mcr p15, 0, r0, c7, c5, 0    /* iciallu */
+    mcr p15, 0, r0, c7, c5, 6    /* bpiall */
+    dsb
+    isb
+
 #ifdef RT_USING_FPU
     mov r4, #0xfffffff
     mcr p15, 0, r4, c1, c0, 2
@@ -96,32 +99,19 @@ continue:
     bic r1, #(3<<19)            /* bit[20:19] must be zero */
     mcr p15, 0, r1, c1, c0, 0
 
-    @ get cpu id, and subtract the offset from the stacks base address
-    bl rt_hw_cpu_id
-    mov r5, r0
+    /* invalid tlb before enable mmu */
+    mrc p15, 0, r0, c1, c0, 0
+    bic r0, #1
+    mcr p15, 0, r0, c1, c0, 0
+    dsb
+    isb
+    mov r0, #0
+    mcr p15, 0, r0, c8, c7, 0
+    mcr p15, 0, r0, c7, c5, 0    /* iciallu */
+    mcr p15, 0, r0, c7, c5, 6    /* bpiall */
+    dsb
+    isb
 
-    cmp     r5, #0              @ cpu id == 0
-    beq     normal_setup
-
-    @ cpu id > 0, stop or wait
-#ifdef RT_SMP_AUTO_BOOT
-    ldr r0, =secondary_cpu_entry
-    mov r1, #0
-    str r1, [r0] /* clean secondary_cpu_entry */
-#endif /* RT_SMP_AUTO_BOOT */
-
-secondary_loop:
-    @ cpu core 1 goes into sleep until core 0 wakeup it
-    wfe
-#ifdef RT_SMP_AUTO_BOOT
-    ldr r1, =secondary_cpu_entry
-    ldr r0, [r1]
-    cmp r0, #0
-    blxne r0 /* if(secondary_cpu_entry) secondary_cpu_entry(); */
-#endif /* RT_SMP_AUTO_BOOT */
-    b secondary_loop
-
-normal_setup:
     /* setup stack */
     bl      stack_setup
 
@@ -147,7 +137,6 @@ bss_loop:
     orr     r0, r0, #(1<<11)
     mcr p15, 0, r0, c1, c0, 0
 
-
     /* initialize the mmu table and enable mmu */
     ldr r0, =platform_mem_desc
     ldr r1, =platform_mem_desc_size
@@ -155,56 +144,41 @@ bss_loop:
     bl rt_hw_init_mmu_table
     bl rt_hw_mmu_init
 
-
-    /* call C++ constructors of global objects                          */
-    ldr     r0, =__ctors_start__
-    ldr     r1, =__ctors_end__
-
-ctor_loop:
-    cmp     r0, r1
-    beq     ctor_end
-    ldr     r2, [r0], #4
-    stmfd   sp!, {r0-r1}
-    mov     lr, pc
-    bx      r2
-    ldmfd   sp!, {r0-r1}
-    b       ctor_loop
-ctor_end:
-
     /* start RT-Thread Kernel */
     ldr     pc, _rtthread_startup
 _rtthread_startup:
     .word rtthread_startup
 
 stack_setup:
-    ldr     r0, =stack_top
+#ifdef RT_USING_SMP
+    /* cpu id */
+    mrc p15, 0, r0, c0, c0, 5
+    and r0, r0, #0xf
+    add r0, r0, #1
+#else
+    mov r0, #1
+#endif
 
-    @  Set the startup stack for svc
-    mov     sp, r0
-    sub     r0, r0, #SVC_Stack_Size
+    cps #Mode_UND
+    ldr r1, =und_stack_n
+    add sp, r1, r0, asl #12
 
-    @  Enter Undefined Instruction Mode and set its Stack Pointer
-    msr     cpsr_c, #Mode_UND|I_Bit|F_Bit
-    mov     sp, r0
-    sub     r0, r0, #UND_Stack_Size
+    cps #Mode_IRQ
+    ldr r1, =irq_stack_n
+    add sp, r1, r0, asl #12
 
-    @  Enter Abort Mode and set its Stack Pointer
-    msr     cpsr_c, #Mode_ABT|I_Bit|F_Bit
-    mov     sp, r0
-    sub     r0, r0, #ABT_Stack_Size
+    cps #Mode_FIQ
+    ldr r1, =irq_stack_n
+    add sp, r1, r0, asl #12
 
-    @  Enter FIQ Mode and set its Stack Pointer
-    msr     cpsr_c, #Mode_FIQ|I_Bit|F_Bit
-    mov     sp, r0
-    sub     r0, r0, #RT_FIQ_STACK_PGSZ
+    cps #Mode_ABT
+    ldr r1, =abt_stack_n
+    add sp, r1, r0, asl #12
 
-    @  Enter IRQ Mode and set its Stack Pointer
-    msr     cpsr_c, #Mode_IRQ|I_Bit|F_Bit
-    mov     sp, r0
-    sub     r0, r0, #RT_IRQ_STACK_PGSZ
+    cps #Mode_SVC
+    ldr r1, =svc_stack_n
+    add sp, r1, r0, asl #12
 
-    /* come back to SVC mode */
-    msr     cpsr_c, #Mode_SVC|I_Bit|F_Bit
     bx      lr
 
 /* exception handlers: undef, swi, padt, dabt, resv, irq, fiq          */
@@ -456,49 +430,29 @@ secondary_cpu_start:
     orr     r0, r0, #(1<<11)
     mcr p15, 0, r0, c1, c0, 0
 
-    @ get cpu id, and subtract the offset from the stacks base address
-    bl rt_hw_cpu_id
-    sub r5, r0, #1
-
-    ldr r0, =SUB_ISR_Stack_Size
-    mul r0, r0, r5                      @r0 = SUB_ISR_Stack_Size * (cpuid - 1)
-    ldr r1, =sub_stack_top
-    sub r0, r1, r0                      @r0 = sub_stack_top - (SUB_ISR_Stack_Size * (cpuid - 1))
-
-    cps #Mode_SVC
-    mov     sp, r0
-    sub     r0, r0, #SUB_SVC_Stack_Size
-
-    cps #Mode_UND
-    mov     sp, r0
-    sub     r0, r0, #SUB_UND_Stack_Size
-
-    cps #Mode_ABT
-    mov     sp, r0
-    sub     r0, r0, #SUB_ABT_Stack_Size
-
-    cps #Mode_FIQ
-    mov     sp, r0
-    sub     r0, r0, #SUB_RT_FIQ_STACK_PGSZ
-
-    cps #Mode_IRQ
-    mov     sp, r0
-    sub     r0, r0, #SUB_RT_IRQ_STACK_PGSZ
-
-    cps #Mode_SVC
+    bl stack_setup
 
     /* initialize the mmu table and enable mmu */
     bl rt_hw_mmu_init
 
     b secondary_cpu_c_start
+#endif
+
+#ifndef RT_CPUS_NR
+#define RT_CPUS_NR 1
+#endif
 
 .bss
-.align 2   //align to  2~2=4
+.align 3     /* align to  2~3=8 */
+svc_stack_n:
+    .space (RT_CPUS_NR << 12)
+svc_stack_n_limit:
 
-.global sub_stack_top /* used for backtrace to calculate stack top of irq mode */
+irq_stack_n:
+    .space (RT_CPUS_NR << 12)
 
-sub_stack_start:
-    .space (SUB_ISR_Stack_Size * (RT_CPUS_NR-1))
-sub_stack_top:
+und_stack_n:
+    .space (RT_CPUS_NR << 12)
 
-#endif
+abt_stack_n:
+    .space (RT_CPUS_NR << 12)

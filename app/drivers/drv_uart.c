@@ -1,98 +1,43 @@
-/*
- * COPYRIGHT (C) 2012-2020, Shanghai Real-Thread Technology Co., Ltd
- * All rights reserved.
- * Change Logs:
- * Date           Author       Notes
- * 2018-02-08     RT-Thread    the first version
- */
-
-#include <rthw.h>
-#include <rtthread.h>
 #include <rtdevice.h>
+#include <rtdef.h>
+#include <board.h>
+#include <drv_uart.h>
+#include <drv_iomux.h>
+#include <drv_clk.h>
 
-#include "drv_uart.h"
-#include "interrupt.h"
-
-// #include "drv_gpio.h"
-// #include "drv_clock.h"
-
-#define readl(addr)           (*(volatile unsigned int *)(addr))
-#define writel(value,addr)    (*(volatile unsigned int *)(addr) = (value))
-#define write32(addr, value)    (*(volatile unsigned int *)(addr) = (value))
-
-#if 1
-
-struct device_uart
+typedef struct uart_device
 {
-    rt_uint32_t hw_base;
-    rt_uint32_t irqno;
-    char name[RT_NAME_MAX];
-    rt_uint32_t gpio_rx_port;
-    rt_uint32_t gpio_tx_port;
-    rt_uint32_t gpio_rx_pin;
-    rt_uint32_t gpio_tx_pin;
-    rt_uint32_t gpio_rx_fun;
-    rt_uint32_t gpio_tx_fun;
-};
+    struct rt_serial_device paret;
+    rt_uint32_t             base;
+    rt_uint32_t             irq;
+    rt_uint32_t             id;
+    struct iomux_cfg        gpio_tx;
+    struct iomux_cfg        gpio_rx;
+    rt_uint32_t             rx_len;
+    rt_uint32_t             index_num;
+    char                    rx_buf[256];
+}*uart_device_t;
 
-static rt_err_t uart_configure(struct rt_serial_device *serial, struct serial_configure *cfg);
-static rt_err_t uart_control(struct rt_serial_device *serial, int cmd, void *arg);
-static int      uart_putc(struct rt_serial_device *serial, char c);
-static int      uart_getc(struct rt_serial_device *serial);
-static rt_size_t uart_dma_transmit(struct rt_serial_device *serial, rt_uint8_t *buf, rt_size_t size, int direction);
-
-void     uart_irq_handler(int irqno, void *param);
-
-typedef unsigned long		virtual_addr_t;
-void sys_uart_init(void)
+static void _uart_init(struct uart_device *dev)
 {
-	virtual_addr_t addr;
-	uint32_t val;
+    rt_uint32_t addr;
+    rt_uint32_t val;
 
-	/* Config GPIOE2 and GPIOE3 to txd0 and rxd0 */
-	addr = 0x02000128 + 0x0;
-	val = readl(addr);
-	val &= ~((0xf << 4) | (0xf << 8));
-	val |= ((0x7 & 0xf) << 4 | ((0x7 & 0xf) << 8));
-	write32(addr, val);
+    /* Config usart TXD and RXD pins */
+    iomux_set_sel(&(dev->gpio_tx));
+    iomux_set_sel(&(dev->gpio_rx));
 
-	/* Open the clock gate for uart0 */
-	addr = 0x0200190c;
-	val = readl(addr);
-	val |= 1 << 0;
-	write32(addr, val);
+    /* Open the clock gate for uart */
+    addr = 0x02001000 + 0x90c;
+    val  = readl(addr);
+    val |= 1 << dev->id;
+    writel(val, addr);
 
-	/* Deassert uart0 reset */
-	addr = 0x0200190c;
-	val = readl(addr);
-	val |= 1 << 16;
-	write32(addr, val);
-
-	/* Config uart0 to 115200-8-1-0 */
-	addr = 0x02500000;
-	write32(addr + 0x04, 0x0);
-	write32(addr + 0x08, 0xf7);
-	write32(addr + 0x10, 0x0);
-	val = readl(addr + 0x0c);
-	val |= (1 << 7);
-	write32(addr + 0x0c, val);
-	write32(addr + 0x00, 0xd & 0xff);
-	write32(addr + 0x04, (0xd >> 8) & 0xff);
-	val = readl(addr + 0x0c);
-	val &= ~(1 << 7);
-	write32(addr + 0x0c, val);
-	val = readl(addr + 0x0c);
-	val &= ~0x1f;
-	val |= (0x3 << 0) | (0 << 2) | (0x0 << 3);
-	write32(addr + 0x0c, val);
-}
-
-void sys_uart_putc(char c)
-{
-	virtual_addr_t addr = 0x02500000;
-
-	while((readl(addr + 0x7c) & (0x1 << 1)) == 0);
-	write32(addr + 0x00, c);
+    /* Deassert USART reset */
+    addr = 0x02001000 + 0x90c;
+    val  = readl(addr);
+    val |= 1 << (16 + dev->id);
+    writel(val, addr);
 }
 
 /*
@@ -100,216 +45,233 @@ void sys_uart_putc(char c)
  */
 static rt_err_t uart_configure(struct rt_serial_device *serial, struct serial_configure *cfg)
 {
-    rt_uint32_t addr, val;
-    struct device_uart *uart;
+    uart_device_t dev = (uart_device_t)serial;
+    rt_uint32_t time_out = 1000;
+    rt_uint32_t addr;
+    rt_uint32_t val;
+    rt_uint32_t sclk = 0;
 
-    RT_ASSERT(serial != RT_NULL);
-    serial->config = *cfg;
-
-    uart = serial->parent.user_data;
-    RT_ASSERT(uart != RT_NULL);
-
-    sys_uart_init();
-
-#if 0
-    /* config gpio port */
-    gpio_set_pull_mode(uart->gpio_rx_port, uart->gpio_rx_pin, PULL_UP);
-    gpio_set_func(uart->gpio_rx_port, uart->gpio_rx_pin, uart->gpio_rx_fun);
-    gpio_set_func(uart->gpio_tx_port, uart->gpio_tx_pin, uart->gpio_tx_fun);
-    /* Enable UART clock */
-    /* Open the clock gate for uart */
-    if ((rt_uint32_t)(uart->hw_base) == UART0_BASE_ADDR)
+    if (serial == RT_NULL || cfg == RT_NULL)
     {
-        bus_gate_clk_enable(UART0_GATING);
-        bus_software_reset_enable(UART0_GATING);
-        bus_software_reset_disable(UART0_GATING);
+        return -RT_EINVAL;
     }
-    else if ((rt_uint32_t)(uart->hw_base) == UART1_BASE_ADDR)
+
+    addr = dev->base;
+    /* hold tx so that uart will update lcr and baud in the gap of tx */
+    val = readl(addr + REG_UART_HALT);
+    val &= ~(0x3 << 0);
+    val |= (0x3 << 0);
+    writel(val, addr + REG_UART_HALT);
+
+    val = readl(addr + REG_UART_LCR);
+    val &= ~(2 << 0);
+
+    switch (cfg->data_bits)
     {
-        bus_gate_clk_enable(UART1_GATING);
-        bus_software_reset_enable(UART1_GATING);
-        bus_software_reset_disable(UART1_GATING);
+    case DATA_BITS_5:
+        break;
+    case DATA_BITS_6:
+        val |= 0x1;
+        break;
+    case DATA_BITS_7:
+        val |= 0x2;
+        break;
+    case DATA_BITS_8:
+        val |= 0x3;
+        break;
+    default:
+        break;
     }
-    else if ((rt_uint32_t)(uart->hw_base) == UART2_BASE_ADDR)
+
+    val &= ~(1 << 2);
+    switch (cfg->stop_bits)
     {
-        bus_gate_clk_enable(UART2_GATING);
-        bus_software_reset_enable(UART2_GATING);
-        bus_software_reset_disable(UART2_GATING);
+    case STOP_BITS_1:
+        break;
+    default:
+        break;
     }
-    else
-        RT_ASSERT(0);
-    /* Config uart0 to 115200-8-1-0 */
-    addr = uart->hw_base;
-    /* close uart irq */
-    writel(0x0, addr + UART_IER);
-    /* config fifo */
-    writel(0x37, addr + UART_FCR);
-    /* config modem */
-    writel(0x0, addr + UART_MCR);
-    /* config baud */
-    val = readl(addr + UART_LCR);
-    val |= (1 << 7);
-    writel(val, addr + UART_LCR);
-    val = apb_get_clk() / 16 / serial->config.baud_rate;
-    writel(val & 0xff, addr + UART_DLL);
-    writel((val >> 8) & 0xff, addr + UART_DLH);
-    val = readl(addr + UART_LCR);
-    val &= ~(1 << 7);
-    writel(val, addr + UART_LCR);
 
-    val = readl(addr + UART_LCR);
-    val &= ~0x1f;
-    val |= ((serial->config.data_bits - DATA_BITS_5) << 0) | (0 << 2) | (0x0 << 3);
-    writel(val, addr + UART_LCR);
+    val &= ~(0x7 << 3);
+    switch (cfg->parity)
+    {
+    case PARITY_NONE:
+        break;
+    case PARITY_ODD:
+        val |= 0x1 << 3;
+        break;
+    case PARITY_EVEN:
+        val |= 0x1 << 3;
+        val |= 0x1 << 4;
+        break;
+    default:
+        break;
+    }
+    writel(val, addr + REG_UART_LCR);
 
-    writel(0xf, addr + UART_TFL);
-    writel(0x3F, addr + UART_RFL);
+    /* set DLAB to access DLL and DLH registers */
+    val = readl(addr + REG_UART_LCR);
+    val |= 0x1 << 7;
+    writel(val, addr + REG_UART_LCR);
+    /* set baud div */
+    sclk = drv_clk_get_apb1_clk();
+    writel((unsigned int)(sclk / (16 * cfg->baud_rate)) & 0xff, addr + REG_UART_DLL);
+    writel(((unsigned int)(sclk / (16 * cfg->baud_rate)) >> 8) & 0xff, addr + REG_UART_DLH);
+    /* clear DLAB */
+    val = readl(addr + REG_UART_LCR);
+    val &= ~(0x1 << 7);
+    writel(val, addr + REG_UART_LCR);
 
-    writel(0x1, addr + UART_IER);
-#endif
+    /* enable fifo */
+    writel(0xf7, addr + REG_UART_FCR);
+
+    /* set mode */
+    writel(0x00, addr + REG_UART_MCR);
+
+    val = readl(addr + REG_UART_HALT);
+    val &= ~(0x1 << 2);
+    val &= ~(0x1 << 0);
+    val |= (0x1 << 2);
+    writel(val, addr + REG_UART_HALT);
+
+    /* wait config update */
+    while ((readl(addr + REG_UART_HALT) & (0x1 << 2)) && time_out--);
+
+    if (time_out == 0)
+    {
+        return -RT_ERROR;
+    }
+
     return RT_EOK;
 }
 
 static rt_err_t uart_control(struct rt_serial_device *serial, int cmd, void *arg)
 {
-    struct device_uart *uart;
-
-    uart = serial->parent.user_data;
-
-    RT_ASSERT(uart != RT_NULL);
+    uart_device_t dev = (uart_device_t)serial;
+    rt_uint32_t val = 0;
 
     switch (cmd)
     {
     case RT_DEVICE_CTRL_CLR_INT:
-        /* Disable the UART Interrupt */
-        rt_hw_interrupt_mask(uart->irqno);
-        writel(0x00, uart->hw_base + UART_IER);
+        /* disable irq */
+        val = readl(dev->base + REG_UART_IER);
+        val &= ~((0x1 << 0) | (0x1 << 2));
+        writel(val, dev->base + REG_UART_IER);
+        rt_hw_interrupt_mask(dev->irq);
         break;
-
     case RT_DEVICE_CTRL_SET_INT:
-        /* install interrupt */
-        rt_hw_interrupt_install(uart->irqno, uart_irq_handler,
-                                serial, uart->name);
-        rt_hw_interrupt_umask(uart->irqno);
-        writel(0x01, uart->hw_base + UART_IER);
-        /* Enable the UART Interrupt */
+        /* enable irq */
+        val = readl(dev->base + REG_UART_IER);
+        val |= ((0x1 << 0) | (0x1 << 2));
+        writel(val, dev->base + REG_UART_IER);
+        rt_hw_interrupt_umask(dev->irq);
+        break;
+    default:
         break;
     }
 
-    return (RT_EOK);
+    return RT_EOK;
 }
 
 
 static int uart_putc(struct rt_serial_device *serial, char c)
 {
-    struct device_uart *uart;
-    volatile rt_uint32_t *sed_buf;
-    volatile rt_uint32_t *sta;
+    uart_device_t dev = (uart_device_t)serial;
+    int ret = 0;
+    rt_uint32_t time_out = 1000;
 
-    uart = serial->parent.user_data;
-    sed_buf = (rt_uint32_t *)(uart->hw_base + UART_THR);
-    sta = (rt_uint32_t *)(uart->hw_base + UART_USR);
-    /* FIFO status, contain valid data */
-    while (!(*sta & 0x02));
-    *sed_buf = c;
+    while((!(readl(dev->base + REG_UART_USR) & (0x1 << 2))) && (time_out--));
+    if (time_out == 0)
+    {
+        ret = 0;
+    }
+    else
+    {
+        writel(c, dev->base + REG_UART_THR);
+        ret = 1;
+    }
 
-    return (1);
+    return ret;
 }
 
 static int uart_getc(struct rt_serial_device *serial)
 {
-    int ch = -1;
-    volatile rt_uint32_t *rec_buf;
-    volatile rt_uint32_t *sta;
-    struct device_uart *uart = serial->parent.user_data;
+    uart_device_t dev = (uart_device_t)serial;
 
-    RT_ASSERT(serial != RT_NULL);
-
-    rec_buf = (rt_uint32_t *)(uart->hw_base + UART_RHB);
-    sta = (rt_uint32_t *)(uart->hw_base + UART_USR);
-
-    /* Receive Data Available */
-    if (*sta & 0x08)
+    if (dev->index_num >= dev->rx_len)
     {
-        ch = *rec_buf & 0xff;
+        dev->index_num = 0;
+        dev->rx_len = 0;
+        return (-RT_ERROR);
     }
 
-    return ch;
+    return (int)dev->rx_buf[dev->index_num++];
 }
 
-static rt_size_t uart_dma_transmit(struct rt_serial_device *serial, rt_uint8_t *buf, rt_size_t size, int direction)
+static void uart_irq_handler(int irqno, void *param)
 {
-    return (0);
-}
+    uart_device_t dev = (uart_device_t)param;
+    rt_uint32_t i = 0;
 
-/* UART ISR */
-void uart_irq_handler(int irqno, void *param)
-{
-    rt_uint32_t val;
-    struct rt_serial_device *serial = (struct rt_serial_device *)param;
-    struct device_uart *uart = serial->parent.user_data;
+    /* enter interrupt */
+    rt_interrupt_enter();
 
-    val = readl(uart->hw_base + 0x08) & 0x0F;
-    /* read interrupt status and clear it */
-    if (val & 0x4) /* rx ind */
+    /* get fifo level */
+    dev->rx_len = readl(dev->base + REG_UART_RFL);
+    if (dev->rx_len > 0)
     {
-        rt_hw_serial_isr(serial, RT_SERIAL_EVENT_RX_IND);
+        /* read char */
+        for (i = 0; i < dev->rx_len; i++)
+        {
+            dev->rx_buf[i++] = (char)readl(dev->base + REG_UART_RBR)  & 0xFF;;
+        }
+        rt_hw_serial_isr(&dev->paret, RT_SERIAL_EVENT_RX_IND);
     }
 
-    if (0) /* tx done */
-    {
-        rt_hw_serial_isr(serial, RT_SERIAL_EVENT_TX_DONE);
-    }
-
+    /* leave interrupt */
+    rt_interrupt_leave();
 }
 
 static const struct rt_uart_ops _uart_ops =
 {
-    uart_configure,
-    uart_control,
-    uart_putc,
-    uart_getc,
-    uart_dma_transmit
+    .configure = uart_configure,
+    .control = uart_control,
+    .putc = uart_putc,
+    .getc = uart_getc,
 };
 
 /*
  * UART Initiation
  */
 #ifdef RT_USING_UART0
-rt_err_t rt_hw_uart0_init(void)
+static struct uart_device uart0 =
 {
-    static struct rt_serial_device  serial0;
-    static struct device_uart       uart0;
-    struct serial_configure config = RT_SERIAL_CONFIG_DEFAULT;
-
-    serial0.ops              = &_uart_ops;
-    serial0.config           = config;
-    serial0.config.baud_rate = 115200;
-
-    uart0.hw_base      = UART0_BASE_ADDR;    // UART0_BASE;
-    uart0.irqno        = 34;    // IRQ_UART0;
-    // uart0.gpio_rx_port = GPIO_PORT_E;
-    // uart0.gpio_tx_port = GPIO_PORT_E;
-    // uart0.gpio_rx_pin  = GPIO_PIN_0;
-    // uart0.gpio_tx_pin  = GPIO_PIN_1;
-    // uart0.gpio_rx_fun  = IO_FUN_4;
-    // uart0.gpio_tx_fun  = IO_FUN_4;
-
-    return rt_hw_serial_register(&serial0,
-                                 "uart0",
-                                 RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_INT_RX,
-                                 &uart0);
-}
-#endif /* RT_USING_UART0 */
+    .base   = UART0_BASE_ADDR,
+    .irq    = UART0_IRQ,
+    .id     = 0,
+    .rx_len = 0,
+    .index_num = 0,
+    .gpio_rx = {.port = IO_PORTG, .pin = PIN_18, .mux = IO_PERIPH_MUX7, .pull = IO_PULL_RESERVE},
+    .gpio_tx = {.port = IO_PORTG, .pin = PIN_17, .mux = IO_PERIPH_MUX7, .pull = IO_PULL_RESERVE},
+    .paret.ops = &_uart_ops,
+};
+#endif
 
 int rt_hw_uart_init(void)
 {
+    rt_err_t ret = RT_EOK;
+    struct serial_configure default_config = RT_SERIAL_CONFIG_DEFAULT;
+
 #ifdef RT_USING_UART0
-    rt_hw_uart0_init();
+    _uart_init(&uart0);
+
+    rt_memset(&uart0.rx_buf[0], 0, sizeof(uart0.rx_buf));
+    rt_hw_interrupt_install(uart0.irq, uart_irq_handler, &uart0, "uart0");
+    rt_hw_interrupt_umask(uart0.irq);
+
+    uart0.paret.config = default_config;
+    ret = rt_hw_serial_register(&uart0.paret, "uart0", RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_INT_RX, &uart0);
 #endif /* RT_USING_UART0 */
 
-    return 0;
+    return ret;
 }
-INIT_BOARD_EXPORT(rt_hw_uart_init);
-
-#endif /* RT_USING_SERIAL */
