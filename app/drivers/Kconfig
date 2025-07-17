@@ -11,9 +11,29 @@ config SOC_ALLWINNER_T113
     default y
 
 menu "Onboard Peripheral Drivers"
-config RT_USING_UART0
-    bool "Enable UART0"
-    default y
+
+    menuconfig BSP_USING_UART
+        bool "Enable UART"
+            select RT_USING_SERIAL
+            default y
+
+        if BSP_USING_UART
+            config BSP_USING_UART0
+                bool "Enable UART0"
+                default y
+        endif
+
+    menuconfig BSP_USING_SMHC
+        bool "Enable SMHC"
+        select RT_USING_SDIO
+        default n
+
+        if BSP_USING_SMHC
+            config BSP_USING_SMHC0
+                bool "Enable SMHC0"
+                default n
+
+        endif
 
 endmenu
 

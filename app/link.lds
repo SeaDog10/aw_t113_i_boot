@@ -8,169 +8,176 @@ _HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0xA00000;
 
 MEMORY
 {
-   DRAM : ORIGIN = 0x40100000, LENGTH = 0x01000000
+    DRAM : ORIGIN = 0x40100000, LENGTH = 0x01000000
 }
 
 ENTRY(system_vectors)
 
 SECTIONS
 {
-   .text :
-   {
-      __text_start = .;
-      KEEP (*(.vectors))
-      /* make the ISRs close to vectors may be more cache-friendly */
-      *(.text.isr)
+    .text :
+    {
+        __text_start = .;
+        KEEP (*(.vectors))
+        /* make the ISRs close to vectors may be more cache-friendly */
+        *(.text.isr)
 
-      /* section information for utest */
-      . = ALIGN(4);
-      __rt_utest_tc_tab_start = .;
-      KEEP(*(UtestTcTab))
-      __rt_utest_tc_tab_end = .;
+        /* section information for utest */
+        . = ALIGN(4);
+        __rt_utest_tc_tab_start = .;
+        KEEP(*(UtestTcTab))
+        __rt_utest_tc_tab_end = .;
 
-      /* section information for finsh shell */
-      . = ALIGN(4);
-      __fsymtab_start = .;
-      KEEP(*(FSymTab))
-      __fsymtab_end = .;
-      . = ALIGN(4);
-      __vsymtab_start = .;
-      KEEP(*(VSymTab))
-      __vsymtab_end = .;
+        /* section information for finsh shell */
+        . = ALIGN(4);
+        __fsymtab_start = .;
+        KEEP(*(FSymTab))
+        __fsymtab_end = .;
+        . = ALIGN(4);
+        __vsymtab_start = .;
+        KEEP(*(VSymTab))
+        __vsymtab_end = .;
 
-      /* section information for var export */
-      . = ALIGN(4);
-      __ve_table_start = .;
-      KEEP(*(SORT(*.VarExpTab.*)))
-      __ve_table_end = .;
+        /* section information for var export */
+        . = ALIGN(4);
+        __ve_table_start = .;
+        KEEP(*(SORT(*.VarExpTab.*)))
+        __ve_table_end = .;
 
-      /* section information for modules */
-      . = ALIGN(4);
-      __rtmsymtab_start = .;
-      KEEP(*(RTMSymTab))
-      __rtmsymtab_end = .;
+        /* section information for modules */
+        . = ALIGN(4);
+        __rtmsymtab_start = .;
+        KEEP(*(RTMSymTab))
+        __rtmsymtab_end = .;
 
-      /* section information for initialization */
-      . = ALIGN(4);
-      __rt_init_start = .;
-      KEEP(*(SORT(.rti_fn*)))
-      __rt_init_end = .;
-   } > DRAM
+        /* section information for initialization */
+        . = ALIGN(4);
+        __rt_init_start = .;
+        KEEP(*(SORT(.rti_fn*)))
+        __rt_init_end = .;
 
-   .init : {
-      KEEP (*(.init))
-   } > DRAM
+        . = ALIGN(16);
+        __usbh_class_info_start__ = .;
+        KEEP(*(.usbh_class_info))
+        __usbh_class_info_end__ = .;
 
-   .fini : {
-      KEEP (*(.fini))
-   } > DRAM
+        . = ALIGN(16);
+    } > DRAM
 
-   .got : {
-      *(.got)
-   } > DRAM
+    .init : {
+        KEEP (*(.init))
+    } > DRAM
 
-   .ARM.attributes : {
-      __ARM.attributes_start = .;
-      *(.ARM.attributes)
-      __ARM.attributes_end = .;
-   } > DRAM
+    .fini : {
+        KEEP (*(.fini))
+    } > DRAM
 
-   .rodata : {
-      __rodata_start = .;
-      *(.rodata)
-      *(.rodata.*)
-      __rodata_end = .;
-   } > DRAM
+    .got : {
+        *(.got)
+    } > DRAM
 
-   .data : {
-      __data_start = .;
-      *(.data)
-      *(.data.*)
-      __data_end = .;
-   } > DRAM
+    .ARM.attributes : {
+        __ARM.attributes_start = .;
+        *(.ARM.attributes)
+        __ARM.attributes_end = .;
+    } > DRAM
 
-   .ctors : {
-      . = ALIGN(64);
-       __CTOR_LIST__ = .;
-      ___CTORS_LIST___ = .;
-      __ctors_start__ = .;
-      KEEP (*crtbegin.o(.ctors))
-      KEEP (*(EXCLUDE_FILE(*crtend.o) .ctors))
-      KEEP (*(SORT(.ctors.*)))
-      KEEP (*(.ctors))
-      __CTOR_END__ = .;
-      ___CTORS_END___ = .;
-      __ctors_end__ = .;
-   } > DRAM
+    .rodata : {
+        __rodata_start = .;
+        *(.rodata)
+        *(.rodata.*)
+        __rodata_end = .;
+    } > DRAM
 
-   .sdata : {
-      __sdata_start = .;
-      *(.sdata)
-      *(.sdata.*)
-      __sdata_end = .;
-   } > DRAM
+    .data : {
+        __data_start = .;
+        *(.data)
+        *(.data.*)
+        __data_end = .;
+    } > DRAM
 
-   .sbss (NOLOAD) : {
-      __sbss_start = .;
-      *(.sbss)
-      *(.sbss.*)
-      __sbss_end = .;
-   } > DRAM
+    .ctors : {
+        . = ALIGN(64);
+         __CTOR_LIST__ = .;
+        ___CTORS_LIST___ = .;
+        __ctors_start__ = .;
+        KEEP (*crtbegin.o(.ctors))
+        KEEP (*(EXCLUDE_FILE(*crtend.o) .ctors))
+        KEEP (*(SORT(.ctors.*)))
+        KEEP (*(.ctors))
+        __CTOR_END__ = .;
+        ___CTORS_END___ = .;
+        __ctors_end__ = .;
+    } > DRAM
 
-   .tdata : {
-      __tdata_start = .;
-      *(.tdata)
-      *(.tdata.*)
-      __tdata_end = .;
-   } > DRAM
+    .sdata : {
+        __sdata_start = .;
+        *(.sdata)
+        *(.sdata.*)
+        __sdata_end = .;
+    } > DRAM
 
-   .tbss : {
-      __tbss_start = .;
-      *(.tbss)
-      *(.tbss.*)
-      __tbss_end = .;
-   } > DRAM
+    .sbss (NOLOAD) : {
+        __sbss_start = .;
+        *(.sbss)
+        *(.sbss.*)
+        __sbss_end = .;
+    } > DRAM
 
-   .bss (NOLOAD) : ALIGN(0x4){
-      __bss_start = .;
-      *(.bss)
-      *(.bss.*)
-      *(.gnu.linkonce.b.*)
-      *(COMMON)
-      __bss_end = .;
-   } > DRAM
+    .tdata : {
+        __tdata_start = .;
+        *(.tdata)
+        *(.tdata.*)
+        __tdata_end = .;
+    } > DRAM
 
-   .stack (NOLOAD) : ALIGN(0x10){
-      __stack_start__ = .;
-      . += _STACK_SIZE;
-      _estack = .;
-      . = ALIGN(0x10);
-      _irq_stack_end = .;
-      . += _IRQSTACK_SIZE;
-      . = ALIGN(0x10);
-      __irq_stack = .;
-      _fiq_stack_end = .;
-      . += _FIQSTACK_SIZE;
-      . = ALIGN(0x10);
-      __fiq_stack = .;
-      _abort_stack_end = .;
-      . += _ABTSTACK_SIZE;
-      . = ALIGN(0x10);
-      __abort_stack = .;
-      _undef_stack_end = .;
-      . += _UNDSTACK_SIZE;
-      . = ALIGN(0x10);
-      __undef_stack = .;
-   } > DRAM
+    .tbss : {
+        __tbss_start = .;
+        *(.tbss)
+        *(.tbss.*)
+        __tbss_end = .;
+    } > DRAM
 
-   .heap (NOLOAD) : ALIGN(0x10){
-      _heap = .;
-      HeapBase = .;
-      _heap_start = .;
-      . += _HEAP_SIZE;
-      _heap_end = .;
-      HeapLimit = .;
-   } > DRAM
+    .bss (NOLOAD) : ALIGN(0x4){
+        __bss_start = .;
+        *(.bss)
+        *(.bss.*)
+        *(.gnu.linkonce.b.*)
+        *(COMMON)
+        __bss_end = .;
+    } > DRAM
 
-   _end = .;
+    .stack (NOLOAD) : ALIGN(0x10){
+        __stack_start__ = .;
+        . += _STACK_SIZE;
+        _estack = .;
+        . = ALIGN(0x10);
+        _irq_stack_end = .;
+        . += _IRQSTACK_SIZE;
+        . = ALIGN(0x10);
+        __irq_stack = .;
+        _fiq_stack_end = .;
+        . += _FIQSTACK_SIZE;
+        . = ALIGN(0x10);
+        __fiq_stack = .;
+        _abort_stack_end = .;
+        . += _ABTSTACK_SIZE;
+        . = ALIGN(0x10);
+        __abort_stack = .;
+        _undef_stack_end = .;
+        . += _UNDSTACK_SIZE;
+        . = ALIGN(0x10);
+        __undef_stack = .;
+    } > DRAM
+
+    .heap (NOLOAD) : ALIGN(0x10){
+        _heap = .;
+        HeapBase = .;
+        _heap_start = .;
+        . += _HEAP_SIZE;
+        _heap_end = .;
+        HeapLimit = .;
+    } > DRAM
+
+    _end = .;
 }

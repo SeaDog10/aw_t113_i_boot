@@ -1,0 +1,5 @@
+menu "Local packages Config"
+
+source "$BSP_DIR/local_packages/CherryUSB/Kconfig"
+
+endmenu

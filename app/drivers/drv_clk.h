@@ -1,7 +1,7 @@
 #ifndef __DRV_CLK_H__
 #define __DRV_CLK_H__
 
-#include "board.h"
+#include <rtthread.h>
 
 #define CCU_BASE_ADDR                   0x02001000
 
@@ -47,10 +47,15 @@
 #define REG_CCU_MBUS_MAT_CLK_GATING     0x804
 #define REG_CCU_DRAM_BGR                0x80c
 #define REG_CCU_SMHC0_CLK               0x830
+#define REG_CCU_SMHC1_CLK               0x834
+#define REG_CCU_SMHC2_CLK               0x838
 #define REG_CCU_SMHC_BGR                0x84c
 #define REG_CCU_USART_BGR               0x90c
 #define REG_CCU_SPI0_CLK                0x940
 #define REG_CCU_SPI_BGR                 0x96c
+#define REG_CCU_USB0_CLK                0xA70
+#define REG_CCU_USB1_CLK                0xA74
+#define REG_CCU_USB_BGR                 0xA8C
 #define REG_CCU_RISCV_CLK               0xd00
 #define REG_CCU_RISCV_GATING            0xd04
 #define REG_CCU_RISCV_CFG_BGR           0xd0c
@@ -76,7 +81,8 @@
 #define CCU_MMC_BGR_SMHC1_RST (1 << 17)
 #define CCU_MMC_BGR_SMHC2_RST (1 << 18)
 
-void drv_clk_init(void);
+int drv_clk_init(void);
+
 unsigned int drv_clk_get_pll_cpu(void);
 unsigned int drv_clk_get_pll_peri_1x(void);
 unsigned int drv_clk_get_pll_peri_2x(void);
@@ -85,5 +91,7 @@ unsigned int drv_clk_get_pll_peri_800M(void);
 unsigned int drv_clk_get_ahbs_clk(void);
 unsigned int drv_clk_get_apb0_clk(void);
 unsigned int drv_clk_get_apb1_clk(void);
+
+void init_smhc0_clk(unsigned int freq);
 
 #endif

@@ -19,6 +19,10 @@
 
 #include <rtthread.h>
 
+#if defined (RT_USING_CACHE) || defined(RT_USING_SMP) || defined(RT_HW_INCLUDE_CPUPORT)
+#include <cpuport.h> /* include spinlock, cache ops, etc. */
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -191,6 +195,12 @@ void rt_hw_secondary_cpu_idle_exec(void);
 #define rt_hw_spin_unlock(lock)   rt_hw_interrupt_enable(*(lock))
 
 #endif
+
+#ifndef RT_USING_CACHE
+    #define rt_hw_isb()
+    #define rt_hw_dmb()
+    #define rt_hw_dsb()
+#endif /* RT_USING_CACHE */
 
 #ifdef __cplusplus
 }

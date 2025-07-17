@@ -1,4 +1,5 @@
-#include "drv_iomux.h"
+#include <drv_iomux.h>
+#include <board.h>
 
 static unsigned int _port_base(unsigned int pin)
 {
@@ -107,4 +108,73 @@ int iomux_set_sel(struct iomux_cfg *iocfg)
 
 _exit:
     return ret;
+}
+
+int gpio_get_value(enum iomux_port port, enum iomux_pin pin)
+{
+    unsigned int reg = 0;
+    unsigned int port_addr = 0;
+    unsigned int pin_num   = 0;
+    unsigned int addr = 0;
+
+    if (port > IO_PORTG || port < IO_PORTB)
+    {
+        return -1;
+    }
+
+    if (pin > PIN_31 || pin < PIN_0)
+    {
+        return -1;
+    }
+
+    port_addr = _port_base(IO_PIN(port, pin));
+    pin_num   = _pin_num(IO_PIN(port, pin));
+    addr = port_addr + REG_GPIO_DAT;
+
+    reg = readl(addr);
+    reg &= (1 << pin_num);
+
+    if (reg)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+int gpio_set_value(enum iomux_port port, enum iomux_pin pin, int value)
+{
+    unsigned int reg = 0;
+    unsigned int port_addr = 0;
+    unsigned int pin_num   = 0;
+    unsigned int addr = 0;
+
+    if (port > IO_PORTG || port < IO_PORTB)
+    {
+        return -1;
+    }
+
+    if (pin > PIN_31 || pin < PIN_0)
+    {
+        return -1;
+    }
+
+    if (value < 0 || value > 1)
+    {
+        return -1;
+    }
+
+    port_addr = _port_base(IO_PIN(port, pin));
+    pin_num   = _pin_num(IO_PIN(port, pin));
+    addr = port_addr + REG_GPIO_DAT;
+
+    reg = readl(addr);
+    reg &= ~(1 << pin_num);
+    if (value)
+    {
+        reg |= (1 << pin_num);
+    }
+    writel(reg, addr);
+
+    return 0;
 }

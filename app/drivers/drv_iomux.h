@@ -1,7 +1,7 @@
 #ifndef __DRV_IOMUX_H__
 #define __DRV_IOMUX_H__
 
-#include "board.h"
+#include <rtthread.h>
 
 enum iomux_port
 {
@@ -96,5 +96,7 @@ struct iomux_cfg
 };
 
 int iomux_set_sel(struct iomux_cfg *iocfg);
+int gpio_get_value(enum iomux_port port, enum iomux_pin pin);
+int gpio_set_value(enum iomux_port port, enum iomux_pin pin, int value);
 
 #endif /* __DRV_IOMUX_H__ */

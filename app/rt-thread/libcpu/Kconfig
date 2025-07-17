@@ -1,6 +1,10 @@
 config ARCH_CPU_64BIT
     bool
 
+config RT_USING_CACHE
+    bool
+    default n
+
 config ARCH_CPU_BIG_ENDIAN
     bool
 

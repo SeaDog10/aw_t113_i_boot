@@ -1,4 +1,18 @@
-#include "drv_clk.h"
+#include <drv_clk.h>
+#include <board.h>
+#include <rtdbg.h>
+
+#define DBG_TAG "[drv.clk]"
+#define BSP_ENBALE_CLK_DEBUG 1
+
+#define DBG_ENABLE
+#if (BSP_ENBALE_CLK_DEBUG == 1)
+#define DBG_LVL DBG_LOG
+#else
+#define DBG_LVL DBG_WARNING
+#endif
+#define DBG_COLOR
+#include <rtdbg.h>
 
 static void sdelay(unsigned int loops)
 {
@@ -166,6 +180,213 @@ static void init_apb1_clk(unsigned int freq)
     sdelay(1);
 }
 
+static void init_usb0_clk(void)
+{
+    unsigned int val = 0;
+    unsigned int bgr_addr = 0;
+    unsigned int clk_addr = 0;
+
+    clk_addr = (unsigned int)REG_CCU_USB0_CLK;
+    bgr_addr = (unsigned int)REG_CCU_USB_BGR;
+
+    /* otg gate open*/
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 8);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    /* otg bus reset */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val &= ~(1 << 24);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 24);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+
+    /* ehci gate open */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 4);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    /* ehci bus reset */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val &= ~(1 << 20);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 20);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+
+    /* ohci gate open */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 0);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    /* ohci bus reset */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val &= ~(1 << 16);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 16);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+
+    sdelay(10);
+
+    /* clock enable */
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val &= ~(3 << 24);              /* Clear USB0_CLK_SEL */
+    val |= (1 << 31) | (1 << 24);   /* Enable USB0_CLK enable & SEL 12M divided from 24 MHz */
+    writel(val, CCU_BASE_ADDR + clk_addr);
+
+    /* reset phy */
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val &= ~(1 << 30);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val |= (1 << 30);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+    sdelay(10);
+}
+
+static void init_usb1_clk(void)
+{
+    unsigned int val = 0;
+    unsigned int bgr_addr = 0;
+    unsigned int clk_addr = 0;
+
+    clk_addr = (unsigned int)REG_CCU_USB1_CLK;
+    bgr_addr = (unsigned int)REG_CCU_USB_BGR;
+
+    /* ehci gate open */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 5);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    /* ehci bus reset */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val &= ~(1 << 21);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 21);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+
+    /* ohci gate open */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 1);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    /* ohci bus reset */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val &= ~(1 << 17);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 17);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+    sdelay(10);
+
+    sdelay(10);
+
+    /* clock enable */
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val &= ~(3 << 24);              /* Clear USB0_CLK_SEL */
+    val |= (1 << 31) | (1 << 24);   /* Enable USB0_CLK enable & SEL 12M divided from 24 MHz */
+    writel(val, CCU_BASE_ADDR + clk_addr);
+
+    /* reset phy */
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val &= ~(1 << 30);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+    sdelay(10);
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val |= (1 << 30);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+    sdelay(10);
+}
+
+void init_smhc0_clk(unsigned int freq)
+{
+    unsigned int val = 0;
+    unsigned int pll_clk = 0;
+    unsigned int mod_clk = 0;
+    unsigned int div = 0, n = 0;
+    unsigned int bgr_addr = 0;
+    unsigned int clk_addr = 0;
+
+    clk_addr = REG_CCU_SMHC0_CLK;
+    bgr_addr = REG_CCU_SMHC_BGR;
+
+    /* reset SMHC0 */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 16);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val &= ~(0x01 << 31);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+
+    val &= ~(0x7 << 24); /* Clear clock source select */
+
+    /* SMHC0_CLK = Clock Source/M/N. */
+    if (freq == 0)
+    {
+        LOG_D("smhc0 freq set to 0.");
+        return;
+    }
+
+    mod_clk = freq * 2;
+
+    if (mod_clk <= 24000000)
+    {
+        /* Clock Source Select HOSC 24MHz  */
+        val |= (0 << 24);
+        pll_clk = 24000000;
+    }
+    else
+    {
+        /* Clock Source Select PLL_PERI(1X) 600MHz */
+        val |= (0x01 << 24);
+        pll_clk = drv_clk_get_pll_peri_1x();
+    }
+
+    div = pll_clk / mod_clk;
+    if (pll_clk % mod_clk)
+    {
+        div++;
+    }
+
+    n = 0;
+    while (div > 16)
+    {
+        n++;
+        div = (div + 1) / 2;
+    }
+
+    if (n > 3)
+    {
+        LOG_E("smhc0 err.cannot set freq to %dHz", freq);
+        return;
+    }
+
+    val |= (0x01 << 31); /* Gating clock ON */
+    val |= (n << 8) | (div - 1);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+
+    /* SMHC0 gate open */
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= 0x01;
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    LOG_D("setfreq %dHz, s_clk:%dHz, M:%d, N:%d.", freq, pll_clk, div, n);
+}
+
 unsigned int drv_clk_get_pll_cpu(void)
 {
     unsigned int val = 0;
@@ -324,7 +545,7 @@ unsigned int drv_clk_get_apb1_clk(void)
     return sclk / m / n;
 }
 
-void drv_clk_init(void)
+int drv_clk_init(void)
 {
     /* init PLL_CPU 1200MHz */
     init_pll_cpu(1200000000);
@@ -340,4 +561,33 @@ void drv_clk_init(void)
 
     /* init advanced peripheral buses (APB1) 24MHz */
     init_apb1_clk(24000000);
+
+    /* init usb0 clk 12MHz */
+    init_usb0_clk();
+
+    /* init usb1 clk 12MHz */
+    init_usb1_clk();
+
+    /* init_smhc0_clk 24MHz */
+    init_smhc0_clk(200000000);
+
+    return 0;
 }
+INIT_BOARD_EXPORT(drv_clk_init);
+
+static void dump_smhc0_clk(void)
+{
+    unsigned int val = 0;
+    unsigned int bgr_addr = 0;
+    unsigned int clk_addr = 0;
+
+    clk_addr = REG_CCU_SMHC0_CLK;
+    bgr_addr = REG_CCU_SMHC_BGR;
+
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    rt_kprintf("SMHC CLK REG %p\n", val);
+
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    rt_kprintf("SMHC BGA REG %p\n", val);
+}
+MSH_CMD_EXPORT(dump_smhc0_clk, dump_smhc0_clk);

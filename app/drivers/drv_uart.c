@@ -223,7 +223,7 @@ static void uart_irq_handler(int irqno, void *param)
         /* read char */
         for (i = 0; i < dev->rx_len; i++)
         {
-            dev->rx_buf[i++] = (char)readl(dev->base + REG_UART_RBR)  & 0xFF;;
+            dev->rx_buf[i] = (char)readl(dev->base + REG_UART_RBR)  & 0xFF;
         }
         rt_hw_serial_isr(&dev->paret, RT_SERIAL_EVENT_RX_IND);
     }
@@ -243,7 +243,7 @@ static const struct rt_uart_ops _uart_ops =
 /*
  * UART Initiation
  */
-#ifdef RT_USING_UART0
+#ifdef BSP_USING_UART0
 static struct uart_device uart0 =
 {
     .base   = UART0_BASE_ADDR,
@@ -255,14 +255,14 @@ static struct uart_device uart0 =
     .gpio_tx = {.port = IO_PORTG, .pin = PIN_17, .mux = IO_PERIPH_MUX7, .pull = IO_PULL_RESERVE},
     .paret.ops = &_uart_ops,
 };
-#endif
+#endif /* BSP_USING_UART0 */
 
 int rt_hw_uart_init(void)
 {
     rt_err_t ret = RT_EOK;
     struct serial_configure default_config = RT_SERIAL_CONFIG_DEFAULT;
 
-#ifdef RT_USING_UART0
+#ifdef BSP_USING_UART0
     _uart_init(&uart0);
 
     rt_memset(&uart0.rx_buf[0], 0, sizeof(uart0.rx_buf));
@@ -271,7 +271,7 @@ int rt_hw_uart_init(void)
 
     uart0.paret.config = default_config;
     ret = rt_hw_serial_register(&uart0.paret, "uart0", RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_INT_RX, &uart0);
-#endif /* RT_USING_UART0 */
+#endif /* BSP_USING_UART0 */
 
     return ret;
 }
