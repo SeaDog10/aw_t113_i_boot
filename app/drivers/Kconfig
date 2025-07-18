@@ -35,6 +35,18 @@ menu "Onboard Peripheral Drivers"
 
         endif
 
+    menuconfig BSP_USING_TWI
+        bool "Enable TWI"
+        select RT_USING_I2C
+        default n
+
+        if BSP_USING_TWI
+            config BSP_USING_TWI0
+                bool "Enable TWI0"
+                default n
+
+        endif
+
 endmenu
 
 endmenu

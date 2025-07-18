@@ -2,18 +2,6 @@
 #include <board.h>
 #include <rtdbg.h>
 
-#define DBG_TAG "[drv.clk]"
-#define BSP_ENBALE_CLK_DEBUG 1
-
-#define DBG_ENABLE
-#if (BSP_ENBALE_CLK_DEBUG == 1)
-#define DBG_LVL DBG_LOG
-#else
-#define DBG_LVL DBG_WARNING
-#endif
-#define DBG_COLOR
-#include <rtdbg.h>
-
 static void sdelay(unsigned int loops)
 {
     __asm__ volatile("1:\n"
@@ -337,7 +325,6 @@ void init_smhc0_clk(unsigned int freq)
     /* SMHC0_CLK = Clock Source/M/N. */
     if (freq == 0)
     {
-        LOG_D("smhc0 freq set to 0.");
         return;
     }
 
@@ -371,7 +358,6 @@ void init_smhc0_clk(unsigned int freq)
 
     if (n > 3)
     {
-        LOG_E("smhc0 err.cannot set freq to %dHz", freq);
         return;
     }
 
@@ -383,8 +369,42 @@ void init_smhc0_clk(unsigned int freq)
     val = readl(CCU_BASE_ADDR + bgr_addr);
     val |= 0x01;
     writel(val, CCU_BASE_ADDR + bgr_addr);
+}
 
-    LOG_D("setfreq %dHz, s_clk:%dHz, M:%d, N:%d.", freq, pll_clk, div, n);
+static void init_mbus_clk(void)
+{
+    unsigned int val = 0;
+    unsigned int clk_addr = 0;
+
+    clk_addr = REG_CCU_MBUS_CLK;
+
+    val = readl(CCU_BASE_ADDR + clk_addr);
+    val |= (0x1 << 30);
+    writel(val, CCU_BASE_ADDR + clk_addr);
+}
+
+static void init_dma_clk(void)
+{
+    unsigned int val = 0;
+    unsigned int bgr_addr = 0;
+
+    bgr_addr = REG_CCU_DMA_BGR;
+
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 16);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    sdelay(20);
+
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 0);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
+
+    bgr_addr = REG_CCU_MBUS_MAT_CLK_GATING;
+
+    val = readl(CCU_BASE_ADDR + bgr_addr);
+    val |= (1 << 0);
+    writel(val, CCU_BASE_ADDR + bgr_addr);
 }
 
 unsigned int drv_clk_get_pll_cpu(void)
@@ -568,26 +588,13 @@ int drv_clk_init(void)
     /* init usb1 clk 12MHz */
     init_usb1_clk();
 
-    /* init_smhc0_clk 24MHz */
+    /* init_smhc0_clk 200MHz */
     init_smhc0_clk(200000000);
+
+    init_mbus_clk();
+
+    init_dma_clk();
 
     return 0;
 }
 INIT_BOARD_EXPORT(drv_clk_init);
-
-static void dump_smhc0_clk(void)
-{
-    unsigned int val = 0;
-    unsigned int bgr_addr = 0;
-    unsigned int clk_addr = 0;
-
-    clk_addr = REG_CCU_SMHC0_CLK;
-    bgr_addr = REG_CCU_SMHC_BGR;
-
-    val = readl(CCU_BASE_ADDR + clk_addr);
-    rt_kprintf("SMHC CLK REG %p\n", val);
-
-    val = readl(CCU_BASE_ADDR + bgr_addr);
-    rt_kprintf("SMHC BGA REG %p\n", val);
-}
-MSH_CMD_EXPORT(dump_smhc0_clk, dump_smhc0_clk);

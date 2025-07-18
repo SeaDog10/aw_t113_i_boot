@@ -52,5 +52,6 @@ extern int _heap_end;
 #define HEAP_END                  ((void *)&_heap_end)
 
 void rt_hw_board_init(void);
+void rt_hw_us_delay(rt_uint32_t us);
 
 #endif

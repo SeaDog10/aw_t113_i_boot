@@ -32,7 +32,7 @@ static void systick_timer_init(void)
     rt_uint32_t base = SYS_TIMER_BASE;
     rt_uint32_t reg_val;
 
-    /* select clock src */
+    /* select timer0 clock src */
     reg_val = readl(base + 0x10);
     reg_val &= ~(0x3 << 3);
     reg_val |= (0x1 << 3);      /* select 24MHz clock */
@@ -41,9 +41,22 @@ static void systick_timer_init(void)
     reg_val |= (0x1 << 1);      /* enable timer reload */
     writel(reg_val, base + 0x10);
 
-    /* set timer reload value */
+    /* select timer1 clock src */
+    reg_val = readl(base + 0x20);
+    reg_val &= ~(0x3 << 3);
+    reg_val |= (0x1 << 3);      /* select 24MHz clock */
+    reg_val &= ~(0x1 << 7);     /* set timer mode periodic */
+    reg_val &= ~(0x7 << 4);     /* set timer pres 1 */
+    reg_val |= (0x1 << 1);      /* enable timer reload */
+    writel(reg_val, base + 0x20);
+
+    /* set timer0 reload value */
     reg_val = (SYS_TIMER_SRC_CLK) / RT_TICK_PER_SECOND;
-    writel(reg_val, base + 0x14);  // 重装载寄存器
+    writel(reg_val, base + 0x14);
+
+    /* set timer1 reload value */
+    reg_val = 0xffffffff;
+    writel(reg_val, base + 0x24);
 
     /* enable irq and start timer */
     reg_val = readl(base + 0x00);
@@ -54,8 +67,28 @@ static void systick_timer_init(void)
     rt_hw_interrupt_umask(91);
 
     reg_val = readl(base + 0x10);
-    reg_val |= (0x1 << 0);      /* enable timer */
+    reg_val |= (0x1 << 0);      /* enable timer0 */
     writel(reg_val, base + 0x10);
+
+    reg_val = readl(base + 0x20);
+    reg_val |= (0x1 << 0);      /* enable timer1 */
+    writel(reg_val, base + 0x20);
+}
+
+void rt_hw_us_delay(rt_uint32_t us)
+{
+    rt_uint32_t ticks = us * 24;
+    rt_uint32_t start = readl(SYS_TIMER_BASE + 0x28); /* read timer1 current tick */
+    rt_uint32_t now;
+
+    while (1)
+    {
+        now = readl(SYS_TIMER_BASE + 0x28);
+        if ((start - now) >= ticks)
+        {
+            break;
+        }
+    }
 }
 
 /**

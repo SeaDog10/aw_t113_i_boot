@@ -117,6 +117,7 @@
 #define RT_USING_SERIAL_V1
 #define RT_SERIAL_USING_DMA
 #define RT_SERIAL_RB_BUFSZ 64
+#define RT_USING_I2C
 #define RT_USING_RTC
 #define RT_USING_SOFT_RTC
 #define RT_USING_SDIO
@@ -392,6 +393,8 @@
 #define BSP_USING_UART0
 #define BSP_USING_SMHC
 #define BSP_USING_SMHC0
+#define BSP_USING_TWI
+#define BSP_USING_TWI0
 /* end of Onboard Peripheral Drivers */
 /* end of Hardware Drivers Config */
 

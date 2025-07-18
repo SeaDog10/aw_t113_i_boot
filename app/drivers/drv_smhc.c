@@ -533,7 +533,7 @@ int rt_hw_smhc_init(void)
     host->private_data = (void *)&smhc0;
     smhc0.host = host;
 
-    tid = rt_thread_create("smhc", smhc_thread_entry, &smhc0, 2048, 20, 10);
+    tid = rt_thread_create("smhc", smhc_thread_entry, &smhc0, 4096, 20, 10);
     if (tid != RT_NULL)
     {
         rt_thread_startup(tid);

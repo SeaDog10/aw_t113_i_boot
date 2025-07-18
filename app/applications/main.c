@@ -10,6 +10,7 @@
 #include <rtthread.h>
 #include <board.h>
 
+#ifdef RT_USING_SMP
 static void thread_entry1(void *parameter)
 {
     while (1)
@@ -55,6 +56,7 @@ void smp_test(void)
     }
 }
 MSH_CMD_EXPORT(smp_test, smp test);
+#endif
 
 int main(void)
 {
