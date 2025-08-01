@@ -3,7 +3,7 @@
 #include <board.h>
 
 #define DBG_TAG "[drv.dmac]"
-#define BSP_ENBALE_DMAC_DEBUG 1
+#define BSP_ENBALE_DMAC_DEBUG 0
 
 #define DBG_ENABLE
 #if (BSP_ENBALE_DMAC_DEBUG == 1)
@@ -70,19 +70,52 @@ typedef struct {
 
 static int          dma_int_cnt = 0;
 static int          dma_init_ok = -1;
-static dma_source_t dma_channel_source[T113_DMAC_CHANNEL_MAX];
-static dma_desc_t   dma_channel_desc[T113_DMAC_CHANNEL_MAX] __attribute__((aligned(64)));
+static dma_source_t dma_channel_source[T113_DMAC_CHANNEL_MAX] __attribute__((aligned(512)));
+static dma_desc_t   dma_channel_desc[T113_DMAC_CHANNEL_MAX]   __attribute__((aligned(512)));
+static void (*dma_channel_handler[T113_DMAC_CHANNEL_MAX])(void);
+
+void dmac_irq_handler(int vector, void *param)
+{
+    dma_reg_t *const dma_reg = (dma_reg_t *)DMAC_BASE_ADDR;
+    rt_uint32_t reg0 = dma_reg->irq_pending0;
+    rt_uint32_t reg1 = dma_reg->irq_pending1;
+    rt_uint32_t mask;
+    int ch = 0;
+
+    for (ch = 0; ch < 8; ch++)
+    {
+        mask = 0x7u << (ch * 4);
+        if (reg0 & mask)
+        {
+            if (dma_channel_handler[ch])
+            {
+                dma_channel_handler[ch]();
+            }
+            dma_reg->irq_pending0 = mask;
+        }
+    }
+
+    for (ch = 0; ch < 8; ch++)
+    {
+        mask = 0x7u << (ch * 4);
+        if (reg1 & mask)
+        {
+            if (dma_channel_handler[ch + 8])
+            {
+                dma_channel_handler[ch + 8]();
+            }
+            dma_reg->irq_pending1 = mask;
+        }
+    }
+}
 
 void dma_init(void)
 {
     int i = 0;
     dma_reg_t *const dma_reg = (dma_reg_t *)DMAC_BASE_ADDR;
 
-    LOG_D("DMA: init");
-
     if (dma_init_ok > 0)
     {
-        LOG_D("DMA: already init");
         return;
     }
 
@@ -103,6 +136,7 @@ void dma_init(void)
         dma_channel_source[i].used      = 0;
         dma_channel_source[i].channel   = &(dma_reg->channel[i]);
         dma_channel_source[i].desc      = &dma_channel_desc[i];
+        dma_channel_handler[i]          = RT_NULL;
     }
 
     dma_int_cnt = 0;
@@ -195,6 +229,7 @@ int dma_setting(rt_uint32_t hdma, dma_set_t *cfg)
     dma_source_t *dma_source    = (dma_source_t *)hdma;
     dma_desc_t   *desc          = dma_source->desc;
     rt_uint32_t  channel_addr   = (rt_uint32_t)(&(dma_set->channel_cfg));
+    dma_reg_t *const dma_reg = (dma_reg_t *)DMAC_BASE_ADDR;
 
     if (!dma_source->used)
     {
@@ -212,10 +247,23 @@ int dma_setting(rt_uint32_t hdma, dma_set_t *cfg)
     }
 
     commit_para  = (dma_set->wait_cyc & 0xff);
-    commit_para |= (dma_set->data_block_size & 0xff) << 8;
 
     desc->commit_para   = commit_para;
     desc->config        = *(volatile rt_uint32_t *)channel_addr;
+
+    if (dma_set->dma_callback)
+    {
+        if (dma_source->channel_count < 8)
+        {
+            dma_reg->irq_en0 |= (1 << ((dma_source->channel_count * 4) + dma_set->callback_type));
+        }
+        else
+        {
+            dma_reg->irq_en1 |= (1 << (((dma_source->channel_count - 8) * 4) + dma_set->callback_type));
+        }
+
+        dma_channel_handler[dma_source->channel_count] = dma_set->dma_callback;
+    }
 
     return 0;
 }
@@ -237,8 +285,9 @@ int dma_start(rt_uint32_t hdma, rt_uint32_t saddr, rt_uint32_t daddr, rt_uint32_
     desc->dest_addr   = daddr;
     desc->byte_count  = bytes;
 
-    rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH, (void *)desc,  sizeof(dma_desc_t));
-    rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH, (void *)saddr, bytes);
+    rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH,      (void *)saddr, bytes);
+    rt_hw_cpu_dcache_ops(RT_HW_CACHE_INVALIDATE, (void *)daddr, bytes);
+    rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH,      (void *)desc,  sizeof(dma_desc_t));
 
     /* start dma */
     channel->desc_addr = (rt_uint32_t)desc;
@@ -280,40 +329,73 @@ int dma_querystatus(rt_uint32_t hdma)
     return (dma_reg->status >> channel_count) & 0x01;
 }
 
-static rt_uint8_t src_buf [512 * 1024]  = {0};
-static rt_uint8_t desc_buf[512 * 1024]  = {0};
-
-void dma_mem_to_mem_test(void)
+int rt_hw_dma_init(void)
 {
-    rt_uint32_t     *src_addr = (rt_uint32_t *)src_buf;
-    rt_uint32_t     *dst_addr = (rt_uint32_t *)desc_buf;
-    rt_uint32_t     len       = 512 * 1024;
-    dma_set_t       dma_set   = {0};
-    rt_uint32_t     hdma = 0, st  = 0;
-    rt_uint32_t     i, valid;
-    rt_tick_t       timeout = 100;
+    int ret = 0;
 
     dma_init();
 
-    len = RT_ALIGN(len, 4);
-    LOG_D("DMA: test 0x%08x ====> 0x%08x, len %dKB", (rt_uint32_t)src_addr, (rt_uint32_t)dst_addr, (len / 1024));
+    rt_hw_interrupt_install(DMAC_IRQ_NUM, dmac_irq_handler, RT_NULL, "dmac");
+    rt_hw_interrupt_umask(DMAC_IRQ_NUM);
 
-    /* dma */
+    return ret;
+}
+INIT_DEVICE_EXPORT(rt_hw_dma_init);
+
+#if 0
+#define DMA_TEST_LEN 32         /* byte */
+
+#define DMA_TEST_SRC_ADDR        (0x40000000)
+#define DMA_TEST_DEST_ADDR       (0x40080000)
+
+static volatile rt_uint32_t src_buffer[DMA_TEST_LEN] __attribute__((aligned(512))) = {0};
+static volatile rt_uint32_t dest_buffer[DMA_TEST_LEN] __attribute__((aligned(512))) = {0};
+
+static struct rt_semaphore dma_sem = {0};
+
+void dma_test_callback(void)
+{
+    rt_sem_release(&dma_sem);
+}
+
+void dma_mem_to_mem_test(void)
+{
+    int ret = 0;
+    static int sem_init = 0;
+    dma_set_t       dma_set   = {0};
+    rt_uint32_t     hdma = 0;
+    rt_uint32_t     i;
+    rt_tick_t       timeout = 0;
+    rt_uint32_t      *src_addr  =  (rt_uint32_t *)src_buffer;
+    rt_uint32_t      *dest_addr = (rt_uint32_t *)dest_buffer;
+    rt_uint32_t     len         = DMA_TEST_LEN * 4;
+
+    if (sem_init == 0)
+    {
+        rt_sem_init(&dma_sem, "dma", 0, RT_IPC_FLAG_PRIO);
+        sem_init = 1;
+    }
+
+    len = RT_ALIGN(len, 4);
+    rt_kprintf("DMA: test 0x%08x ====> 0x%08x, len %dB\n", (rt_uint32_t)src_addr, (rt_uint32_t)dest_addr, (len));
+
     dma_set.loop_mode       = 0;
     dma_set.wait_cyc        = 8;
-    dma_set.data_block_size = 1 * 32 / 8;
-    /* channel config (from dram to dram)*/
+
     dma_set.channel_cfg.src_drq_type     = DMAC_CFG_TYPE_DRAM; // dram
-    dma_set.channel_cfg.src_burst_length = DMAC_CFG_SRC_4_BURST;
-    dma_set.channel_cfg.src_addr_mode    = DMAC_CFG_DEST_ADDR_TYPE_LINEAR_MODE;
-    dma_set.channel_cfg.src_data_width   = DMAC_CFG_SRC_DATA_WIDTH_16BIT;
+    dma_set.channel_cfg.src_block_size   = DMAC_CFG_SRC_1_BURST;
+    dma_set.channel_cfg.src_addr_mode    = DMAC_CFG_SRC_ADDR_TYPE_LINEAR_MODE;
+    dma_set.channel_cfg.src_data_width   = DMAC_CFG_SRC_DATA_WIDTH_32BIT;
     dma_set.channel_cfg.reserved0        = 0;
 
     dma_set.channel_cfg.dst_drq_type     = DMAC_CFG_TYPE_DRAM; // dram
-    dma_set.channel_cfg.dst_burst_length = DMAC_CFG_DEST_4_BURST;
+    dma_set.channel_cfg.dst_block_size   = DMAC_CFG_DEST_1_BURST;
     dma_set.channel_cfg.dst_addr_mode    = DMAC_CFG_DEST_ADDR_TYPE_LINEAR_MODE;
-    dma_set.channel_cfg.dst_data_width   = DMAC_CFG_DEST_DATA_WIDTH_16BIT;
+    dma_set.channel_cfg.dst_data_width   = DMAC_CFG_DEST_DATA_WIDTH_32BIT;
     dma_set.channel_cfg.reserved1        = 0;
+
+    dma_set.dma_callback = dma_test_callback;
+    dma_set.callback_type = DMA_QUEUE_END_INT;
 
     hdma = dma_request(0);
     if (!hdma)
@@ -324,29 +406,33 @@ void dma_mem_to_mem_test(void)
 
     dma_setting(hdma, &dma_set);
 
-    // prepare data
-    for (i = 0; i < (len / 4); i += 4)
+    rt_memset(src_addr, 0x55, len);
+    rt_memset(dest_addr, 0, len);
+
+    for (i = 0; i < (DMA_TEST_LEN); i++)
     {
-        src_addr[i]     = i;
-        src_addr[i + 1] = i + 1;
-        src_addr[i + 2] = i + 2;
-        src_addr[i + 3] = i + 3;
+        rt_kprintf("src_addr[%d] %d\n", i, src_addr[i]);
     }
 
     timeout = rt_tick_get();
 
-    dma_start(hdma, (rt_uint32_t)src_addr, (rt_uint32_t)dst_addr, len);
-    st = dma_querystatus(hdma);
+    dma_start(hdma, (rt_uint32_t)src_addr, (rt_uint32_t)dest_addr, len);
 
-    while (((rt_tick_get() - timeout) < 10000) && st)
-    {
-        st = dma_querystatus(hdma);
-        rt_thread_mdelay(1);
-    }
+    LOG_D("REG_DMAC_EN[0]          0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_EN(0)));
+    LOG_D("REG_DMAC_PAU[0]         0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_PAU(0)));
+    LOG_D("REG_DMAC_DESC_ADDR[0]   0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_DESC_ADDR(0)));
+    LOG_D("REG_DMAC_CFG[0]         0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_CFG(0)));
+    LOG_D("REG_DMAC_CUR_SRC[0]     0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_CUR_SRC(0)));
+    LOG_D("REG_DMAC_CUR_DEST[0]    0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_CUR_DEST(0)));
+    LOG_D("REG_DMAC_BCNT_LEFT[0]   0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_BCNT_LEFT(0)));
+    LOG_D("REG_DMAC_PARA[0]        0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_PARA(0)));
+    LOG_D("REG_DMAC_MODE[0]        0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_MODE(0)));
+    LOG_D("REG_DMAC_FDESC_ADDR[0]  0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_FDESC_ADDR(0)));
+    LOG_D("REG_DMAC_PKG_NUM[0]     0x%08x", readl(DMAC_BASE_ADDR + REG_DMAC_PKG_NUM(0)));
 
-    rt_hw_cpu_dcache_ops(RT_HW_CACHE_INVALIDATE, dst_addr, 1);
+    ret = rt_sem_take(&dma_sem, 2000);
 
-    if (st)
+    if (ret != RT_EOK)
     {
         LOG_E("DMA: test timeout!");
         dma_stop(hdma);
@@ -355,23 +441,11 @@ void dma_mem_to_mem_test(void)
     }
     else
     {
-        valid = 1;
-        // Check data is valid
-        for (i = 0; i < (len / 4); i += 4)
+        rt_kprintf("DMA: test in %dms\n", (rt_tick_get() - timeout));
+
+        for (i = 0; i < (DMA_TEST_LEN); i++)
         {
-            if (dst_addr[i] != i || dst_addr[i + 1] != i + 1 || dst_addr[i + 2] != i + 2 || dst_addr[i + 3] != i + 3)
-            {
-                valid = 0;
-                break;
-            }
-        }
-        if (valid)
-        {
-            LOG_D("DMA: test OK in %lums", (rt_tick_get() - timeout));
-        }
-        else
-        {
-            LOG_E("DMA: test check failed at %d bytes", i);
+            rt_kprintf("dest_addr[%d] %d\n", i, dest_addr[i]);
         }
     }
 
@@ -379,35 +453,4 @@ void dma_mem_to_mem_test(void)
     dma_release(hdma);
 }
 MSH_CMD_EXPORT(dma_mem_to_mem_test, dma_mem_to_mem_test);
-
-typedef struct dmac_device
-{
-    struct rt_device parent;
-    rt_uint32_t base;
-    rt_bool_t init_ok;
-} *dmac_dev_t;
-
-static rt_err_t t113_dmac_init(rt_device_t dev)
-{
-    return RT_EOK;
-}
-
-static rt_err_t t113_dmac_control(rt_device_t dev, int cmd, void *args)
-{
-    return RT_EOK;
-}
-
-static struct rt_device_ops dmac_ops =
-{
-    .init    = t113_dmac_init,
-    .open    = RT_NULL,
-    .close   = RT_NULL,
-    .read    = RT_NULL,
-    .write   = RT_NULL,
-    .control = t113_dmac_control,
-};
-
-int rt_hw_dmac_init(void)
-{
-
-}
+#endif

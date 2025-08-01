@@ -9,6 +9,9 @@
 #define T113_GIC_CPU_BASE       (0x03022000)
 #define T113_GIC_DIST_BASE      (0x03021000)
 
+#define UNCACHE_MEM_ADDR        (0x40000000)
+#define UNCACHE_MEM_SIZE        (0x00100000)
+
 /* t113 on-board gic irq sources */
 #define ARM_GIC_NR_IRQS         223
 #define MAX_HANDLERS            223
@@ -53,5 +56,10 @@ extern int _heap_end;
 
 void rt_hw_board_init(void);
 void rt_hw_us_delay(rt_uint32_t us);
+
+void *uncache_malloc(rt_size_t size);
+void  uncache_free(void *rmem);
+void *uncache_malloc_align(rt_size_t size, rt_size_t align);
+void uncache_free_align(void *ptr);
 
 #endif

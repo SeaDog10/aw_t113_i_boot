@@ -407,6 +407,39 @@ static void init_dma_clk(void)
     writel(val, CCU_BASE_ADDR + bgr_addr);
 }
 
+static void init_emac_clk(void)
+{
+    unsigned int val = 0;
+    unsigned int phy_clk_addr = 0;
+    unsigned int bgr_addr = 0;
+
+    phy_clk_addr = (0x03000000 + 0x30);
+    bgr_addr = REG_CCU_EMAC_BGR;
+
+    val = readl(phy_clk_addr);
+
+    val &= ~(1 << 15);  /* PHY_SELECT = 0 (External PHY) */
+    val |= (1 << 16);   /* 0:PowerUp; 1:Shutdown */
+    val |= 0x04;        /* EMAC PHY Interface RGMII */
+
+    /* Internal transmit clock source for GMII and RGMII */
+    val &= ~(0x03);
+    val |= 0x02;
+
+    /* Adjust Tx/Rx clock delay */
+    val &= ~(0x07 << 10);
+    val |= ((0x02 & 0x07) << 10); /* tx_delay */
+    val &= ~(0x1f << 5);
+    val |= ((0x00 & 0x1f) << 5); /* rx_delay */
+
+    writel(val, phy_clk_addr);
+
+    val = readl((void *)(CCU_BASE_ADDR + bgr_addr));
+    val |= (1 << 16);   /* Reset Deassert */
+    val |= (1 << 0);
+    writel(val, (void *)(CCU_BASE_ADDR + bgr_addr));
+}
+
 unsigned int drv_clk_get_pll_cpu(void)
 {
     unsigned int val = 0;
@@ -594,6 +627,8 @@ int drv_clk_init(void)
     init_mbus_clk();
 
     init_dma_clk();
+
+    init_emac_clk();
 
     return 0;
 }

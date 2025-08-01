@@ -545,12 +545,12 @@ void *mem_trim(void *mem, mem_size_t size)
 
 void *mem_malloc(mem_size_t size)
 {
-    return rt_malloc(size);
+    return rt_malloc_align(size, 32);
 }
 
 void  mem_free(void *mem)
 {
-    rt_free(mem);
+    rt_free_align(mem);
 }
 
 #ifdef RT_LWIP_PPP

@@ -3,7 +3,8 @@
 
 #include <rtthread.h>
 
-#define DMAC_BASE_ADDR          (0x03002000)
+#define DMAC_BASE_ADDR              (0x03002000)
+#define DMAC_IRQ_NUM                82
 
 #define REG_DMAC_IRQ_EN0            0x00
 #define REG_DMAC_IRQ_EN1            0x04
@@ -26,7 +27,6 @@
 
 #define T113_DMAC_CHANNEL_MAX   16
 
-// #define SUNXI_DMA_CHANNEL_SIZE (0x40)
 #define SUNXI_DMA_LINK_NULL	   (0xfffff800)
 
 #define DMA_RST_OFS             16
@@ -36,13 +36,9 @@
 #define DMAC_CFG_TYPE_DRAM      (1)
 #define DMAC_CFG_TYPE_SRAM      (0)
 
-// #define DMAC_CFG_TYPE_SPI0      (22)
-// #define DMAC_CFG_TYPE_SHMC0     (20)
-// #define DMAC_CFG_SRC_TYPE_NAND  (5)
-
-/* DMA base config  */
-// #define DMAC_CFG_CONTINUOUS_ENABLE	(0x01)
-// #define DMAC_CFG_CONTINUOUS_DISABLE (0x00)
+#define DMA_PKG_HALF_INT_MASK    (1 << 0)
+#define DMA_PKG_END_INT_MASK     (1 << 1)
+#define DMA_QUEUE_END_INT_MASK   (1 << 2)
 
 /* ----------DMA dest config-------------------- */
 /* DMA dest width config */
@@ -58,7 +54,7 @@
 #define DMAC_CFG_DEST_16_BURST (0x03)
 
 #define DMAC_CFG_DEST_ADDR_TYPE_LINEAR_MODE (0x00)
-#define DMAC_CFG_DEST_ADDR_TYPE_IO_MODE		(0x01)
+#define DMAC_CFG_DEST_ADDR_TYPE_IO_MODE     (0x01)
 
 /* ----------DMA src config -------------------*/
 #define DMAC_CFG_SRC_DATA_WIDTH_8BIT  (0x00)
@@ -71,23 +67,23 @@
 #define DMAC_CFG_SRC_8_BURST  (0x02)
 #define DMAC_CFG_SRC_16_BURST (0x03)
 
-#define DMAC_CFG_SRC_ADDR_TYPE_LINEAR_MODE (0x00)
-#define DMAC_CFG_SRC_ADDR_TYPE_IO_MODE	   (0x01)
+#define DMAC_CFG_SRC_ADDR_TYPE_LINEAR_MODE  (0x00)
+#define DMAC_CFG_SRC_ADDR_TYPE_IO_MODE      (0x01)
 
 /*dma int config*/
-// #define DMA_PKG_HALF_INT  (1 << 0)
-// #define DMA_PKG_END_INT	  (1 << 1)
-// #define DMA_QUEUE_END_INT (1 << 2)
+#define DMA_PKG_HALF_INT    (0)
+#define DMA_PKG_END_INT     (1)
+#define DMA_QUEUE_END_INT   (2)
 
 typedef struct dma_channel_config
 {
     volatile rt_uint32_t src_drq_type       : 6;
-    volatile rt_uint32_t src_burst_length   : 2;
+    volatile rt_uint32_t src_block_size     : 2;
     volatile rt_uint32_t src_addr_mode      : 1;
     volatile rt_uint32_t src_data_width     : 2;
     volatile rt_uint32_t reserved0          : 5;
     volatile rt_uint32_t dst_drq_type       : 6;
-    volatile rt_uint32_t dst_burst_length   : 2;
+    volatile rt_uint32_t dst_block_size     : 2;
     volatile rt_uint32_t dst_addr_mode      : 1;
     volatile rt_uint32_t dst_data_width     : 2;
     volatile rt_uint32_t reserved1          : 5;
@@ -99,8 +95,9 @@ typedef struct
     rt_uint32_t loop_mode;
     rt_uint32_t data_block_size;
     rt_uint32_t wait_cyc;
+    void (*dma_callback)(void);
+    rt_uint32_t callback_type;
 } dma_set_t;
-
 
 void dma_init(void);
 void dma_exit(void);

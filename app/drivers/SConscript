@@ -10,8 +10,9 @@ path =  [cwd]
 src += ['board.c']
 src += ['drv_clk.c']
 src += ['drv_iomux.c']
-src += ['drv_ov2640.c']
 src += ['drv_dmac.c']
+src += ['drv_emac.c']
+# src += ['drv_ov2640.c']
 
 if  GetDepend('BSP_USING_UART'):
     src += ['drv_uart.c']

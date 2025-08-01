@@ -4,9 +4,119 @@
 #include <drv_uart.h>
 #include <drv_clk.h>
 
+static struct rt_memheap uncache_memheap = {0};
+static struct rt_mutex _mem_lock;
+
+rt_inline void _mem_heap_lock_init(void)
+{
+    rt_mutex_init(&_mem_lock, "heap", RT_IPC_FLAG_PRIO);
+}
+
+rt_inline rt_base_t _mem_heap_lock(void)
+{
+    if (rt_thread_self())
+        return rt_mutex_take(&_mem_lock, RT_WAITING_FOREVER);
+    else
+        return RT_EOK;
+}
+
+rt_inline void _mem_heap_unlock(rt_base_t level)
+{
+    RT_ASSERT(level == RT_EOK);
+    if (rt_thread_self())
+        rt_mutex_release(&_mem_lock);
+}
+
+void *uncache_malloc(rt_size_t size)
+{
+    rt_base_t level;
+    void *ptr;
+
+    level = _mem_heap_lock();
+
+    ptr = rt_memheap_alloc(&uncache_memheap, size);
+
+    _mem_heap_unlock(level);
+
+    return ptr;
+}
+
+void uncache_free(void *rmem)
+{
+    rt_base_t level;
+
+    if (rmem == RT_NULL) return;
+    level = _mem_heap_lock();
+    rt_memheap_free(rmem);
+    _mem_heap_unlock(level);
+}
+
+void *uncache_malloc_align(rt_size_t size, rt_size_t align)
+{
+    void *ptr;
+    void *align_ptr;
+    int uintptr_size;
+    rt_size_t align_size;
+
+    /* sizeof pointer */
+    uintptr_size = sizeof(void*);
+    uintptr_size -= 1;
+
+    /* align the alignment size to uintptr size byte */
+    align = ((align + uintptr_size) & ~uintptr_size);
+
+    /* get total aligned size */
+    align_size = ((size + uintptr_size) & ~uintptr_size) + align;
+    /* allocate memory block from heap */
+    ptr = uncache_malloc(align_size);
+    if (ptr != RT_NULL)
+    {
+        /* the allocated memory block is aligned */
+        if (((rt_ubase_t)ptr & (align - 1)) == 0)
+        {
+            align_ptr = (void *)((rt_ubase_t)ptr + align);
+        }
+        else
+        {
+            align_ptr = (void *)(((rt_ubase_t)ptr + (align - 1)) & ~(align - 1));
+        }
+
+        /* set the pointer before alignment pointer to the real pointer */
+        *((rt_ubase_t *)((rt_ubase_t)align_ptr - sizeof(void *))) = (rt_ubase_t)ptr;
+
+        ptr = align_ptr;
+    }
+
+    return ptr;
+}
+
+void uncache_free_align(void *ptr)
+{
+    void *real_ptr;
+
+    /* NULL check */
+    if (ptr == RT_NULL) return;
+    real_ptr = (void *) * (rt_ubase_t *)((rt_ubase_t)ptr - sizeof(void *));
+    uncache_free(real_ptr);
+}
+
+static void uncache_mem_info(void)
+{
+    rt_size_t total, used, max_used;
+
+    rt_memheap_info(&uncache_memheap, &total, &used, &max_used);
+
+    rt_kprintf("heap      name : %s\n", uncache_memheap.parent.name);
+    rt_kprintf("total     size : 0x%08x\n", total);
+    rt_kprintf("used      size : 0x%08x\n", used);
+    rt_kprintf("available size : 0x%08x\n", total - used);
+    rt_kprintf("max used  size : 0x%08x\n", max_used);
+}
+MSH_CMD_EXPORT(uncache_mem_info, uncache_mem_info);
+
 struct mem_desc platform_mem_desc[] = {
     {0x00000000, 0xFFFFFFFF, 0x00000000, DEVICE_MEM},
-    {0x40000000, 0x47FFFFFF, 0x40000000, NORMAL_MEM},
+    {0x40100000, 0x47FFFFFF, 0x40100000, NORMAL_MEM},
 };
 
 const rt_uint32_t platform_mem_desc_size = sizeof(platform_mem_desc)/sizeof(platform_mem_desc[0]);
@@ -128,6 +238,10 @@ void rt_hw_board_init(void)
 
     /* initialize system heap */
     rt_system_heap_init(HEAP_BEGIN, HEAP_END);
+
+    /* initialize uncache mem */
+    rt_mutex_init(&_mem_lock, "uncachemem", RT_IPC_FLAG_PRIO);
+    rt_memheap_init(&uncache_memheap, "uncachemem", (void *)UNCACHE_MEM_ADDR, (rt_size_t)UNCACHE_MEM_SIZE);
 
     systick_timer_init();
 

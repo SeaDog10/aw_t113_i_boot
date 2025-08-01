@@ -45,5 +45,4 @@ struct mem_desc
     rt_uint32_t attr;
 };
 
-
 #endif

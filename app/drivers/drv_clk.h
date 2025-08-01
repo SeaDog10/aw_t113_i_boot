@@ -54,6 +54,8 @@
 #define REG_CCU_TWI_BGR                 0x91c
 #define REG_CCU_SPI0_CLK                0x940
 #define REG_CCU_SPI_BGR                 0x96c
+#define REG_CCU_EMAC_CLK                0x970
+#define REG_CCU_EMAC_BGR                0x97c
 #define REG_CCU_USB0_CLK                0xA70
 #define REG_CCU_USB1_CLK                0xA74
 #define REG_CCU_USB_BGR                 0xA8C
