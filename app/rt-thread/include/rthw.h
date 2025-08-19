@@ -140,7 +140,7 @@ void rt_hw_exception_install(rt_err_t (*exception_handle)(void *context));
  * delay interfaces
  */
 void rt_hw_us_delay(rt_uint32_t us);
-
+void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask);
 #ifdef RT_USING_SMP
 typedef union {
     unsigned long slock;

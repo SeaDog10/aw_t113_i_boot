@@ -47,6 +47,12 @@ menu "Onboard Peripheral Drivers"
 
         endif
 
+    menuconfig BSP_USING_EMAC
+        bool "Enable EMAC"
+        select RT_USING_SAL
+        select RT_USING_LWIP
+        default n
+
 endmenu
 
 endmenu

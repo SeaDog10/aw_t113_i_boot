@@ -50,7 +50,7 @@ unsigned int rt_hw_interrupt_get_prior_group_bits(void);
 
 rt_isr_handler_t rt_hw_interrupt_install(int vector, rt_isr_handler_t handler,
         void *param, const char *name);
-
+void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask);
 #ifdef RT_USING_SMP
 void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask);
 void rt_hw_ipi_handler_install(int ipi_vector, rt_isr_handler_t ipi_isr_handler);

@@ -218,6 +218,7 @@ void idle_wfi(void)
     asm volatile ("wfi");
 }
 
+void rt_hw_secondary_cpu_up(void);
 /**
  * This function will initialize beaglebone board
  */
@@ -254,10 +255,35 @@ void rt_hw_board_init(void)
 
     rt_thread_idle_sethook(idle_wfi);
 
+    rt_hw_secondary_cpu_up();
+
 #if defined(RT_USING_COMPONENTS_INIT)
     rt_components_board_init();
 #endif /* RT_USING_COMPONENTS_INIT */
 }
+
+void rt_hw_secondary_cpu_up(void)
+{
+    /*
+    The Soft Entry Address Register of CPU0 is 0x070005C4.
+    The Soft Entry Address Register of CPU1 is 0x070005C8.
+    */
+    rt_uint32_t cpuboot_membase = 0x070005c4;
+    rt_uint32_t cpuxcfg_membase = 0x09010000;
+    rt_uint32_t reg;
+
+    /* Set CPU boot address */
+    writel((uint32_t)(0x40200000), cpuboot_membase + 4);
+
+    /* Deassert the CPU core in reset */
+    reg = readl(cpuxcfg_membase);
+    writel(reg | (1 << 1), cpuxcfg_membase);
+
+    __asm__ volatile ("dsb":::"memory");
+
+    rt_hw_ipi_send(0, (1 ^ (1 << 1)));
+}
+
 
 #ifdef RT_USING_SMP
 void rt_hw_secondary_cpu_up(void)

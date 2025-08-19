@@ -370,7 +370,7 @@ rt_uint32_t arm_gic_get_group(rt_uint32_t index, int irq)
 int arm_gic_dist_init(rt_uint32_t index, rt_uint32_t dist_base, int irq_start)
 {
     unsigned int gic_type, i;
-    rt_uint32_t cpumask = 1U << 0U;
+    rt_uint32_t cpumask = ((1U << 0U) | (1U << 1U));
 
     RT_ASSERT(index < ARM_GIC_MAX_NR);
 
@@ -436,7 +436,7 @@ int arm_gic_cpu_init(rt_uint32_t index, rt_uint32_t cpu_base)
     GIC_CPU_PRIMASK(cpu_base) = 0xf0U;
     GIC_CPU_BINPOINT(cpu_base) = 0x7U;
     /* Enable CPU interrupt */
-    GIC_CPU_CTRL(cpu_base) = 0x01U;
+    GIC_CPU_CTRL(cpu_base) = (0x01U);
 
     return 0;
 }

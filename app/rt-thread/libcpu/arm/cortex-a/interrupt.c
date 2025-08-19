@@ -312,6 +312,15 @@ rt_isr_handler_t rt_hw_interrupt_install(int vector, rt_isr_handler_t handler,
     return old_handler;
 }
 
+void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask)
+{
+#ifdef RT_USING_GIC_V2
+    arm_gic_send_sgi(0, ipi_vector, cpu_mask, 0);
+#else
+    arm_gic_send_affinity_sgi(0, ipi_vector, cpu_mask, ROUTED_TO_SPEC);
+#endif
+}
+
 #ifdef RT_USING_SMP
 void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask)
 {

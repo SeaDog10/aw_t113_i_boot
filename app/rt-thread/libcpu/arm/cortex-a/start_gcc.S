@@ -71,6 +71,25 @@ continue:
     /* set the cpu to SVC32 mode and disable interrupt */
     cps #Mode_SVC
 
+    ldr r1, =0x02500000
+    mov r0, #'a'
+    strb r0, [r1]
+    ldr r1, =0x02500000
+    mov r0, #'a'
+    strb r0, [r1]
+    ldr r1, =0x02500000
+    mov r0, #'a'
+    strb r0, [r1]
+    ldr r1, =0x02500000
+    mov r0, #'a'
+    strb r0, [r1]
+    ldr r1, =0x02500000
+    mov r0, #'a'
+    strb r0, [r1]
+    ldr r1, =0x02500000
+    mov r0, #'a'
+    strb r0, [r1]
+
     /* invalid tlb before enable mmu */
     mrc p15, 0, r0, c1, c0, 0
     bic r0, #1
