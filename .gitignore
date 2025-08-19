@@ -5,6 +5,7 @@
 *.bin
 *.hex
 *.axf
+*.img
 *.pdb
 *.idb
 *.ilk

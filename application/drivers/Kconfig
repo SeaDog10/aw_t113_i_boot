@@ -1,0 +1,62 @@
+menu "Hardware Drivers Config"
+
+config SOC_ALLWINNER_T113
+    bool
+    select ARCH_ARM
+    select ARCH_ARM_CORTEX_A7
+    select RT_USING_COMPONENTS_INIT
+    select RT_USING_USER_MAIN
+    select RT_USING_CACHE
+    select RT_USING_GIC_V2
+    default y
+
+menu "Onboard Peripheral Drivers"
+
+    menuconfig BSP_USING_UART
+        bool "Enable UART"
+            select RT_USING_SERIAL
+            default y
+
+        if BSP_USING_UART
+            config BSP_USING_UART0
+                bool "Enable UART0"
+                default n
+
+            config BSP_USING_UART1
+                bool "Enable UART1"
+                default y
+        endif
+
+    menuconfig BSP_USING_SMHC
+        bool "Enable SMHC"
+        select RT_USING_SDIO
+        default n
+
+        if BSP_USING_SMHC
+            config BSP_USING_SMHC0
+                bool "Enable SMHC0"
+                default n
+
+        endif
+
+    menuconfig BSP_USING_TWI
+        bool "Enable TWI"
+        select RT_USING_I2C
+        default n
+
+        if BSP_USING_TWI
+            config BSP_USING_TWI0
+                bool "Enable TWI0"
+                default n
+
+        endif
+
+    menuconfig BSP_USING_EMAC
+        bool "Enable EMAC"
+        select RT_USING_SAL
+        select RT_USING_LWIP
+        default n
+
+endmenu
+
+endmenu

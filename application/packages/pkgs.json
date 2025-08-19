@@ -1,0 +1,12 @@
+[
+ {
+  "name": "NETUTILS",
+  "path": "/packages/iot/netutils",
+  "ver": "v1.3.3"
+ },
+ {
+  "name": "SOEM",
+  "path": "/packages/misc/soem",
+  "ver": "latest"
+ }
+]
