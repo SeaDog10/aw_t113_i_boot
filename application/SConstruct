@@ -2,8 +2,6 @@ import os
 import sys
 import rtconfig
 
-target = ARGUMENTS.get('amp', 'master')  # 默认 master
-os.system("python update_config.py %s" % target)
 
 if os.getenv('RTT_ROOT'):
     RTT_ROOT = os.getenv('RTT_ROOT')
@@ -17,7 +15,21 @@ if not os.getenv("RTT_ROOT"):
 sys.path = sys.path + [os.path.join(RTT_ROOT, 'tools')]
 from building import *
 
-TARGET = 'rtthread.' + rtconfig.TARGET_EXT
+target = ARGUMENTS.get('amp', 'master')  # 默认 master
+print("[INFO] 输入为 %s 配置" % target)
+os.system("%s update_config.py %s" % (sys.executable, target))
+
+if target == "master":
+    TARGET = 'rtthread_m.' + rtconfig.TARGET_EXT
+    rtconfig.LFLAGS += ",-Map=rtthread_m.map" + " -T link_m.lds"
+    rtconfig.POST_ACTION = rtconfig.OBJCPY + ' -O binary $TARGET rtthread_m.bin\n' + rtconfig.SIZE + ' $TARGET \n'
+elif target == "slave":
+    TARGET = 'rtthread_s.' + rtconfig.TARGET_EXT
+    rtconfig.LFLAGS += ",-Map=rtthread_s.map" + " -T link_s.lds"
+    rtconfig.POST_ACTION = rtconfig.OBJCPY + ' -O binary $TARGET rtthread_s.bin\n' + rtconfig.SIZE + ' $TARGET \n'
+else:
+    print("[ERROR] amp 参数错误，仅支持 master 或 slave")
+    sys.exit(1)
 
 DefaultEnvironment(tools=[])
 env = Environment(tools = ['mingw'],
