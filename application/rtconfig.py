@@ -41,8 +41,7 @@ if PLATFORM == 'gcc':
             if "CONFIG_RT_AMP_SLAVE=y" in f.read():
                 LINK_SCRIPT = "link_s.lds"
 
-    LFLAGS = DEVICE + ' -nostartfiles -Wl,--gc-sections,-Map=rtthread.map,-cref,-u,system_vectors'+\
-                      ' -T %s' % LINK_SCRIPT
+    LFLAGS = DEVICE + ' -nostartfiles -Wl,--gc-sections,-cref,-u,system_vectors'
 
     CPATH = ''
     LPATH = ''
@@ -64,5 +63,4 @@ if PLATFORM == 'gcc':
                                     ' -shared -fPIC -nostartfiles -nostdlib -static-libgcc'
     M_POST_ACTION = STRIP + ' -R .hash $TARGET\n' + SIZE + ' $TARGET \n'
 
-    POST_ACTION = OBJCPY + ' -O binary $TARGET rtthread.bin\n' +\
-                  SIZE + ' $TARGET \n'
+    POST_ACTION = []
