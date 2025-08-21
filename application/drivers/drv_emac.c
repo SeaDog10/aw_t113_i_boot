@@ -340,6 +340,13 @@ static void emac_phy_init(emac_dev_t dev)
     rt_uint32_t reg_val = 0;
     rt_uint16_t phy_val = 0;
     rt_uint8_t phy_addr = 0;
+    rt_uint16_t anar    = 0;
+    rt_uint16_t anlpar  = 0;
+    rt_uint16_t gbcr    = 0;
+    rt_uint16_t gbsr    = 0;
+    rt_int32_t  speed   = 10;
+    rt_int32_t  duplex  = 0;
+    rt_uint16_t common  = 0;
 
     /* reset phy */
     phy_val = emac_phy_read(dev, phy_addr, 0x00);
@@ -361,10 +368,41 @@ static void emac_phy_init(emac_dev_t dev)
         i++;
     }
 
-    phy_val = emac_phy_read(dev, phy_addr, 0x00);
+    anar   = emac_phy_read(dev, phy_addr, 0x04);
+    anlpar = emac_phy_read(dev, phy_addr, 0x05);
+    gbcr   = emac_phy_read(dev, phy_addr, 0x09);
+    gbsr   = emac_phy_read(dev, phy_addr, 0x0a);
+
+    if ((gbcr & (1 << 9)) && (gbsr & (1 << 11)))   /* 1000 Full */
+    {
+        speed = 1000;
+        duplex = 1;
+    }
+    else if ((gbcr & (1 << 8)) && (gbsr & (1 << 10))) /* 1000 Half */
+    {
+        speed = 1000;
+        duplex = 0;
+    }
+    else
+    {
+        common = anar & anlpar;
+        if (common & (1 << 8)) {       /* 100 Full */
+            speed = 100;
+            duplex = 1;
+        } else if (common & (1 << 7)) { /* 100 Half */
+            speed = 100;
+            duplex = 0;
+        } else if (common & (1 << 6)) { /* 10 Full */
+            speed = 10;
+            duplex = 1;
+        } else if (common & (1 << 5)) { /* 10 Half */
+            speed = 10;
+            duplex = 0;
+        }
+    }
 
     reg_val = readl(dev->base_addr + REG_EMAC_BASIC_CTL0);
-    if (phy_val & 0x0100)
+    if (duplex == 1)
     {
         reg_val |= 0x01;
     }
@@ -375,11 +413,11 @@ static void emac_phy_init(emac_dev_t dev)
 
     /* Default is 1000Mbps */
     reg_val &= ~0x0c;
-    if (phy_val & 0x2000)
+    if (speed == 100)
     {
         reg_val |= 0x0c;
     }
-    else if (!(phy_val & 0x0040))
+    else if (speed == 10)
     {
         reg_val |= 0x08;
     }
@@ -416,12 +454,12 @@ static void emac_phy_init(emac_dev_t dev)
     rt_hw_us_delay(100 * 1000);
     emac_phy_write(dev, phy_addr, 0x1F, phy_val);
 
-    phy_val = emac_phy_read(dev, phy_addr, 0x00);
-    rt_kprintf("emac   Speed: %dMbps, Mode: %s, Loopback: %s\n",
-                ((phy_val & 0x0040) ? 1000 :
-                ((phy_val & 0x2000) ? 100 : 10)),
-                (phy_val & 0x0100)  ? "Full duplex" : "Half duplex",
-                (phy_val & 0x4000)  ? "YES" : "NO");
+    rt_kprintf("emac   Speed: %dMbps, Mode: %s\n",
+                speed,
+                duplex ? "Full duplex" : "Half duplex");
+
+    // phy_val = emac_phy_read(dev, phy_addr, 0x11);
+    // rt_kprintf("PHY Specific Status Register 0x%08x\n", phy_val);
 }
 
 static struct iomux_cfg mdc  = {.port=IO_PORTG,.pin=PIN_14,.mux=IO_PERIPH_MUX4,.pull=IO_PULL_RESERVE};
