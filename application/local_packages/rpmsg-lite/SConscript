@@ -1,0 +1,29 @@
+from building import *
+
+cwd     = GetCurrentDir()
+src     = Split("""
+    lib/common/llist.c
+    lib/rpmsg_lite/rpmsg_lite.c
+    lib/rpmsg_lite/rpmsg_ns.c
+    lib/rpmsg_lite/rpmsg_queue.c
+    lib/rpmsg_lite/porting/environment/rpmsg_env_rtthread.c
+    lib/rpmsg_lite/porting/platform/t113/rpmsg_platform.c
+    lib/virtio/virtqueue.c
+""")
+
+if GetDepend(['RT_AMP_MASTER']):
+    src += Glob('lib/rpmsg_lite/porting/platform/t113/examples/rpmsg_echo_master.c')
+    # src += Glob('lib/rpmsg_lite/porting/platform/t113/examples/rpmsg_perf_master.c')
+
+if GetDepend(['RT_AMP_SLAVE']):
+    src += Glob('lib/rpmsg_lite/porting/platform/t113/examples/rpmsg_echo_remote.c')
+    # src += Glob('lib/rpmsg_lite/porting/platform/t113/examples/rpmsg_perf_remote.c')
+
+CPPPATH = [cwd + r'/lib',
+           cwd + r'/lib/include',
+           cwd + r'/lib/include/platform/t113',
+           cwd + r'/lib/include/environment/rtthread']
+
+group = DefineGroup('rpmsg-lite', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')

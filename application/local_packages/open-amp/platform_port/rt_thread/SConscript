@@ -1,0 +1,73 @@
+# RT-Thread building script for bridge
+
+import os
+from building import *
+Import('rtconfig')
+
+cwd = GetCurrentDir()
+group = []
+
+metal_src = Split('''
+../../libmetal/lib/device.c
+../../libmetal/lib/dma.c
+../../libmetal/lib/init.c
+../../libmetal/lib/io.c
+../../libmetal/lib/irq.c
+../../libmetal/lib/log.c
+../../libmetal/lib/shmem.c
+../../libmetal/lib/softirq.c
+../../libmetal/lib/version.c
+''')
+
+openamp_src = Split('''
+../../openamp/lib/proxy/rpmsg_retarget.c
+../../openamp/lib/remoteproc/elf_loader.c
+../../openamp/lib/remoteproc/remoteproc.c
+../../openamp/lib/remoteproc/remoteproc_virtio.c
+../../openamp/lib/remoteproc/rsc_table_parser.c
+../../openamp/lib/rpmsg/rpmsg.c
+../../openamp/lib/rpmsg/rpmsg_virtio.c
+../../openamp/lib/service/rpmsg/rpc/rpmsg_rpc_client.c
+../../openamp/lib/service/rpmsg/rpc/rpmsg_rpc_server.c
+../../openamp/lib/version.c
+../../openamp/lib/virtio/virtio.c
+../../openamp/lib/virtio/virtqueue.c
+../../openamp/lib/utils/utilities.c
+''')
+
+operation_interface = Split('''
+../../operation_interface/metal/device.c
+../../operation_interface/metal/init.c
+../../operation_interface/metal/io.c
+../../operation_interface/metal/irq.c
+../../operation_interface/metal/time.c
+../../operation_interface/share_memory.c
+../../operation_interface/openamp_virtio_device.c
+''')
+
+platform_port = Split('''
+amp_sigiface_dev.c
+''')
+
+if GetDepend('RT_AMP_MASTER') == True:
+    platform_port += Glob('pull_up_cpu.c')
+
+if GetDepend('PKG_INTER_CORE_USING_HW_MAILBOX') == True:
+    platform_port += Glob('amp_mailbox.c')
+
+openamp_demo = []
+if GetDepend('AMP_DEMO_ENABLE') == True:
+    openamp_demo += Glob("../../openamp_demo/openamp_*.c")
+
+src = openamp_src + metal_src + operation_interface + openamp_demo + platform_port
+CPPPATH = [
+    cwd + '/../../openamp/lib/include/',
+    cwd + '/../../operation_interface/',
+    cwd + '/../../openamp_demo/',
+    cwd + './',
+]
+CPPDEFINES = ['METAL_INTERNAL', 'OPENAMP_VERSION_MAJOR=1', 'OPENAMP_VERSION_MINOR=0', 'OPENAMP_VERSION_PATCH=0', 'OPENAMP_VERSION=\\"1.0.0\\"']
+
+group = DefineGroup('OpenAMP', src, depend = ['PKG_USING_OPENAMP'], CPPPATH = CPPPATH, CPPDEFINES = CPPDEFINES)
+
+Return('group')

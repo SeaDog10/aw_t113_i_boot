@@ -4,7 +4,7 @@
 #include <drv_clk.h>
 
 #define DBG_TAG "[drv.smhc]"
-#define BSP_ENBALE_SMHC_DEBUG 0
+#define BSP_ENBALE_SMHC_DEBUG 1
 
 #define DBG_ENABLE
 #if (BSP_ENBALE_SMHC_DEBUG == 1)

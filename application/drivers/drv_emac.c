@@ -460,6 +460,8 @@ static void emac_phy_init(emac_dev_t dev)
 
     // phy_val = emac_phy_read(dev, phy_addr, 0x11);
     // rt_kprintf("PHY Specific Status Register 0x%08x\n", phy_val);
+
+    rt_kprintf("reg value 0x%08x\n", readl(dev->base_addr + REG_EMAC_RGMII_STA));
 }
 
 static struct iomux_cfg mdc  = {.port=IO_PORTG,.pin=PIN_14,.mux=IO_PERIPH_MUX4,.pull=IO_PULL_RESERVE};

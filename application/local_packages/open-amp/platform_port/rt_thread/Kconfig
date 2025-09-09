@@ -1,0 +1,116 @@
+
+# Kconfig file for package openamp
+menuconfig PKG_USING_OPENAMP
+    bool "OpenAMP: openamp for RT-Thread"
+    default n
+
+if PKG_USING_OPENAMP
+    config RT_USING_OPENAMP
+        bool "ENABLE OpenAMP"
+        default y
+
+    config RPMSG_BUFFER_SIZE
+        int "RPMSG buffer size"
+        default 512
+
+    config AMP_REMOTE_CPU_ID
+        int "OpenAMP remote role cpu id(0 - 3)"
+        range 0 3
+        default 1
+
+    if RT_AMP_MASTER
+        config AMP_REMOTE_ENTRY
+            hex "OpenAMP remote start address"
+            default 0x20000000
+    endif
+
+    choice
+            prompt "Select inter-core communication method"
+            default AMP_USING_IPI
+            config AMP_USING_IPI
+                bool "Using IPI to inter-core communication"
+
+            config AMP_USING_HW_MAILBOX
+                bool "Using hw mailbox to inter-core communication"
+        endchoice
+
+        if AMP_USING_IPI
+            config AMP_CPU_SGI_INTERRUPT_ID
+                int "Inter-core communication IPI interrupt id(0 - 15)"
+                range 0 15
+                default 7
+        endif
+
+        if AMP_USING_HW_MAILBOX
+            config AMP_HW_LOCAL_MAILBOX_CHANNEL
+                int "Inter-core communication Local core MailBox channel(0 - 3)"
+                range 0 3
+                default 0
+
+            config AMP_HW_REMOTE_MAILBOX_CHANNEL
+                int "Inter-core communication Remote core MailBox channel(0 - 3)"
+                range 0 3
+                default 0
+        endif
+
+    config AMP_SHARE_MEM_PHYSICS_ADDRESS
+        hex "OpenAMP shared memory start address"
+        default 0x70000000
+
+    config AMP_SHARE_MEMORY_SIZE
+        hex "OpenAMP shared memory size"
+        default 0x10000
+
+    config AMP_VDEV_STATUS_SIZE
+        hex "OpenAMP virtual device status size"
+        default 0x1000
+
+    config AMP_AUTO_MEMORY
+        bool "Enable auto memory"
+        default y
+    if !AMP_AUTO_MEMORY
+        config AMP_DEMO_VRING_RX_ADDR
+            hex "OpenAMP rx vring descriptor address"
+            default 0x70028000
+
+        config AMP_DEMO_VRING_TX_ADDR
+            hex "OpenAMP tx vring descriptor address"
+            default 0x7002c000
+    endif
+
+    config AMP_DEMO_VRING_TX_DES_NUM
+        int "OpenAMP tx vring number of descriptors"
+        default 16
+
+    config AMP_DEMO_VRING_RX_DES_NUM
+        int "OpenAMP rx vring number of descriptors"
+        default 16
+
+    menuconfig AMP_DEMO_ENABLE
+        bool "ENABLE OpenAMP test"
+        default y
+    if AMP_DEMO_ENABLE
+        config AMP_DEMO_ECHO
+            bool "OpenAMP echo demo"
+            default n
+    endif
+
+    choice
+        prompt "Version"
+        help
+            Select this package version
+
+        config PKG_USING_OPENAMP_V10000
+            bool "v1.0.0"
+
+        config PKG_USING_OPENAMP_LATEST_VERSION
+            bool "latest"
+    endchoice
+
+    config PKG_OPENAMP_VER
+        string
+        default "v1.0.0" if PKG_USING_OPENAMP_V10000
+        default "latest" if PKG_USING_OPENAMP_LATEST_VERSION
+
+endif
+

@@ -15,7 +15,7 @@ EXEC_PATH   = r'/usr/bin'
 if os.getenv('RTT_EXEC_PATH'):
     EXEC_PATH = os.getenv('RTT_EXEC_PATH')
 
-BUILD = ''
+BUILD = 'debug'
 
 if PLATFORM == 'gcc':
     # toolchains
@@ -46,12 +46,10 @@ if PLATFORM == 'gcc':
     CPATH = ''
     LPATH = ''
 
-    # generate debug info in all cases
-    AFLAGS += ' -gdwarf-2'
-    CFLAGS += ' -g -gdwarf-2'
-
     if BUILD == 'debug':
         CFLAGS += ' -O0'
+        AFLAGS += ' -gdwarf-2'
+        CFLAGS += ' -g -gdwarf-2'
     else:
         CFLAGS += ' -O2'
 

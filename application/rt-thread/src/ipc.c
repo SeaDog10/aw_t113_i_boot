@@ -2637,7 +2637,7 @@ rt_mq_t rt_mq_create(const char *name,
     /* get correct message size */
     mq->msg_size = RT_ALIGN(msg_size, RT_ALIGN_SIZE);
     mq->max_msgs = max_msgs;
-
+    rt_kprintf("rt_mq_create mq->msg_size %d mq->max_msgs %d\n", mq->msg_size , mq->max_msgs);
     /* allocate message pool */
     mq->msg_pool = RT_KERNEL_MALLOC((mq->msg_size + sizeof(struct rt_mq_message)) * mq->max_msgs);
     if (mq->msg_pool == RT_NULL)
@@ -2646,7 +2646,7 @@ rt_mq_t rt_mq_create(const char *name,
 
         return RT_NULL;
     }
-
+    rt_kprintf("mq->msg_pool addr 0x%p\n", mq->msg_pool);
     /* initialize message list */
     mq->msg_queue_head = RT_NULL;
     mq->msg_queue_tail = RT_NULL;
@@ -3100,32 +3100,34 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
 
         return -RT_ETIMEOUT;
     }
-
+    rt_kprintf("%s %d\n", __func__, __LINE__);
     /* message queue is empty */
     while (mq->entry == 0)
     {
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* reset error number in thread */
         thread->error = RT_EOK;
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* no waiting, return timeout */
         if (timeout == 0)
         {
             /* enable interrupt */
             rt_hw_interrupt_enable(level);
-
+            rt_kprintf("%s %d\n", __func__, __LINE__);
             thread->error = -RT_ETIMEOUT;
-
+            rt_kprintf("%s %d\n", __func__, __LINE__);
             return -RT_ETIMEOUT;
         }
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* suspend current thread */
         _ipc_list_suspend(&(mq->parent.suspend_thread),
                             thread,
                             mq->parent.parent.flag);
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* has waiting time, start thread timer */
         if (timeout > 0)
         {
+            rt_kprintf("%s %d\n", __func__, __LINE__);
             /* get the start tick of timer */
             tick_delta = rt_tick_get();
 
@@ -3137,24 +3139,31 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
                              RT_TIMER_CTRL_SET_TIME,
                              &timeout);
             rt_timer_start(&(thread->thread_timer));
+            rt_kprintf("%s %d\n", __func__, __LINE__);
         }
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* enable interrupt */
         rt_hw_interrupt_enable(level);
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
+        // extern void dump_echo_remote_stack(void);
+        // dump_echo_remote_stack();
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* re-schedule */
         rt_schedule();
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
+        // dump_echo_remote_stack();
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* recv message */
         if (thread->error != RT_EOK)
         {
+            rt_kprintf("%s %d\n", __func__, __LINE__);
             /* return error */
             return thread->error;
         }
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* disable interrupt */
         level = rt_hw_interrupt_disable();
-
+        rt_kprintf("%s %d\n", __func__, __LINE__);
         /* if it's not waiting forever and then re-calculate timeout tick */
         if (timeout > 0)
         {
@@ -3164,10 +3173,10 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
                 timeout = 0;
         }
     }
-
+    rt_kprintf("%s %d\n", __func__, __LINE__);
     /* get message from queue */
     msg = (struct rt_mq_message *)mq->msg_queue_head;
-
+    rt_kprintf("%s %d\n", __func__, __LINE__);
     /* move message queue head */
     mq->msg_queue_head = msg->next;
     /* reach queue tail, set to NULL */
@@ -3185,7 +3194,7 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
 
     /* copy message */
     rt_memcpy(buffer, msg + 1, size > mq->msg_size ? mq->msg_size : size);
-
+    rt_kprintf("buffer 0x%p\n", buffer);
     /* disable interrupt */
     level = rt_hw_interrupt_disable();
     /* put message to free list */

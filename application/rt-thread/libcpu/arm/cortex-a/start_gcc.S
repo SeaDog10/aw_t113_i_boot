@@ -26,7 +26,7 @@
 .equ SVC_Stack_Size,     0x00000400
 .equ ABT_Stack_Size,     0x00000400
 .equ RT_FIQ_STACK_PGSZ,  0x00000000
-.equ RT_IRQ_STACK_PGSZ,  0x00000800
+.equ RT_IRQ_STACK_PGSZ,  0x00001000
 .equ USR_Stack_Size,     0x00000400
 
 #define ISR_Stack_Size  (UND_Stack_Size + SVC_Stack_Size + ABT_Stack_Size + \

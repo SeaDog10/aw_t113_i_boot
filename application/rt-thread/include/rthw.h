@@ -146,6 +146,7 @@ void rt_hw_us_delay(rt_uint32_t us);
  *  ipi function
  */
 void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask);
+int rt_hw_cpu_id(void);
 #endif
 
 #ifdef RT_USING_SMP
@@ -165,8 +166,6 @@ struct rt_spinlock
 void rt_hw_spin_lock_init(rt_hw_spinlock_t *lock);
 void rt_hw_spin_lock(rt_hw_spinlock_t *lock);
 void rt_hw_spin_unlock(rt_hw_spinlock_t *lock);
-
-int rt_hw_cpu_id(void);
 
 extern rt_hw_spinlock_t _cpus_lock;
 extern rt_hw_spinlock_t _rt_critical_lock;

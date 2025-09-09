@@ -323,7 +323,7 @@ void rt_hw_ipi_send(int ipi_vector, unsigned int cpu_mask)
 }
 #endif
 
-#if defined(RT_USING_SMP)
+#if defined(RT_USING_SMP) || defined(RT_USING_AMP)
 void rt_hw_ipi_handler_install(int ipi_vector, rt_isr_handler_t ipi_isr_handler)
 {
     /* note: ipi_vector maybe different with irq_vector */

@@ -4,6 +4,7 @@
 #include <drv_uart.h>
 #include <drv_clk.h>
 
+#ifdef RT_AMP_MASTER
 static struct rt_memheap uncache_memheap = {0};
 static struct rt_mutex _mem_lock;
 
@@ -113,10 +114,25 @@ static void uncache_mem_info(void)
     rt_kprintf("max used  size : 0x%08x\n", max_used);
 }
 MSH_CMD_EXPORT(uncache_mem_info, uncache_mem_info);
+#endif /* #ifdef RT_AMP_MASTER */
 
-struct mem_desc platform_mem_desc[] = {
-    {0x00000000, 0xFFFFFFFF, 0x00000000, DEVICE_MEM},
-    {0x40100000, 0x47FFFFFF, 0x40100000, NORMAL_MEM},
+struct mem_desc platform_mem_desc[] =
+{
+    {0x00000000, 0x40000000, 0x00000000, DEVICE_MEM}, /* back ground */
+
+#ifdef RT_USING_AMP
+    {0x40000000, 0x40100000, 0x40000000, NORMAL_MEM}, /* amp shared mem */
+#else
+    {0x40100000, 0x47FFFFFF, 0x40100000, NORMAL_MEM}, /* defalut mem */
+    {0x40300000, 0x40400000, 0x40300000, DEVICE_MEM}, /* nocache mem */
+#endif /* RT_USING_AMP */
+
+#ifdef RT_AMP_MASTER
+    {0x40100000, 0x40200000, 0x40100000, NORMAL_MEM}, /* core 0 Master */
+    {0x40300000, 0x40400000, 0x40300000, DEVICE_MEM}, /* nocache mem Master */
+#elif defined(RT_AMP_SLAVE)
+    {0x40200000, 0x40300000, 0x40200000, NORMAL_MEM}, /* core 1 Slave */
+#endif /* RT_AMP_MASTER */
 };
 
 const rt_uint32_t platform_mem_desc_size = sizeof(platform_mem_desc)/sizeof(platform_mem_desc[0]);
@@ -270,11 +286,13 @@ void rt_hw_board_init(void)
     /* initialize system heap */
     rt_system_heap_init(HEAP_BEGIN, HEAP_END);
 
+#ifdef RT_AMP_MASTER
     /* initialize uncache mem */
     rt_mutex_init(&_mem_lock, "uncachemem", RT_IPC_FLAG_PRIO);
     rt_memheap_init(&uncache_memheap, "uncachemem", (void *)UNCACHE_MEM_ADDR, (rt_size_t)UNCACHE_MEM_SIZE);
+#endif /* #ifdef RT_AMP_MASTER */
 
-    systick_timer_init();
+    // systick_timer_init();
 
 #ifdef RT_USING_SMP
     /* install IPI handle */
@@ -349,3 +367,53 @@ void rt_hw_secondary_cpu_idle_exec(void)
 }
 
 #endif
+
+static void hexdump(unsigned int start_base, unsigned int len)
+{
+    unsigned int i = 0, j=  0;
+    unsigned char val = 0;
+    char ascii_buf[17] = {0};
+
+    rt_kprintf("Dump 0x%p %dBytes\r\n", start_base, len);
+    rt_kprintf("Offset      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\r\n");
+
+    for (i = 0; i < len; i += 16)
+    {
+        rt_kprintf("0x%08X  ", start_base + i);
+
+        for (j = 0; j < 16; j++)
+        {
+            if (i + j < len)
+            {
+                val = *((unsigned char *)(start_base + i + j));
+                rt_kprintf("%02X ", val);
+                ascii_buf[j] = (val >= 32 && val <= 126) ? val : '.';
+            }
+            else
+            {
+                rt_kprintf("   ");
+                ascii_buf[j] = ' ';
+            }
+        }
+
+        rt_kprintf(" %s\r\n", ascii_buf);
+    }
+}
+
+void shared_mem_test(void)
+{
+    rt_kprintf(">>>>>>>>%d<<<<<<<\n", rt_hw_cpu_id());
+    hexdump(0x40000000, 4096);
+
+    if (rt_hw_cpu_id() == 0)
+    {
+        rt_memset((void *)0x40000000, 0x55, 4096);
+    }
+    else
+    {
+        rt_memset((void *)0x40000000, 0xaa, 4096);
+    }
+    rt_kprintf(">>>>>>>>%d<<<<<<<\n", rt_hw_cpu_id());
+    hexdump(0x40000000, 4096);
+}
+MSH_CMD_EXPORT(shared_mem_test, shared_mem_test);

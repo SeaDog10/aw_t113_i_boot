@@ -9,8 +9,11 @@
 #define T113_GIC_CPU_BASE       (0x03022000)
 #define T113_GIC_DIST_BASE      (0x03021000)
 
-#define UNCACHE_MEM_ADDR        (0x40000000)
+#define UNCACHE_MEM_ADDR        (0x40300000)
 #define UNCACHE_MEM_SIZE        (0x00100000)
+
+#define AMP_DDR_RPMSG_START     (0x40000000)
+#define AMP_DDR_RPMSG_END       (0x40100000)
 
 /* t113 on-board gic irq sources */
 #define ARM_GIC_NR_IRQS         223

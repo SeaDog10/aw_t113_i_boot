@@ -416,6 +416,7 @@ __exit:
     return ;
 }
 #else
+#include <armv7.h>
 /**
  * @brief This function will perform scheduling once. It will select one thread
  *        with the highest priority, and switch to it immediately.
@@ -475,14 +476,65 @@ void rt_schedule(void)
                 rt_schedule_remove_thread(to_thread);
                 to_thread->stat = RT_THREAD_RUNNING | (to_thread->stat & ~RT_THREAD_STAT_MASK);
 
-                /* switch to new thread */
-                RT_DEBUG_LOG(RT_DEBUG_SCHEDULER,
+                struct rt_hw_stack *stack = RT_NULL;
+                if ((rt_strncmp(to_thread->name, "rpmsg_echo_remote", RT_NAME_MAX) == 0))
+                {
+                    /* switch to new thread */
+                    RT_DEBUG_LOG(RT_DEBUG_SCHEDULER,
                         ("[%d]switch to priority#%d "
                          "thread:%.*s(sp:0x%08x), "
                          "from thread:%.*s(sp: 0x%08x)\n",
                          rt_interrupt_nest, highest_ready_priority,
                          RT_NAME_MAX, to_thread->name, to_thread->sp,
                          RT_NAME_MAX, from_thread->name, from_thread->sp));
+
+                    stack = to_thread->sp;
+                    rt_kprintf("cpsr : 0x%08x\n", stack->cpsr);
+                    rt_kprintf("r0   : 0x%08x\n", stack->r0);
+                    rt_kprintf("r1   : 0x%08x\n", stack->r1);
+                    rt_kprintf("r2   : 0x%08x\n", stack->r2);
+                    rt_kprintf("r3   : 0x%08x\n", stack->r3);
+                    rt_kprintf("r4   : 0x%08x\n", stack->r4);
+                    rt_kprintf("r5   : 0x%08x\n", stack->r5);
+                    rt_kprintf("r6   : 0x%08x\n", stack->r6);
+                    rt_kprintf("r7   : 0x%08x\n", stack->r7);
+                    rt_kprintf("r8   : 0x%08x\n", stack->r8);
+                    rt_kprintf("r9   : 0x%08x\n", stack->r9);
+                    rt_kprintf("r10  : 0x%08x\n", stack->r10);
+                    rt_kprintf("fp   : 0x%08x\n", stack->fp);
+                    rt_kprintf("ip   : 0x%08x\n", stack->ip);
+                    rt_kprintf("lr   : 0x%08x\n", stack->lr);
+                    rt_kprintf("pc   : 0x%08x\n", stack->pc);
+                }
+                else if (rt_strncmp(from_thread->name, "rpmsg_echo_remote", RT_NAME_MAX) == 0)
+                {
+                    /* switch to new thread */
+                    RT_DEBUG_LOG(RT_DEBUG_SCHEDULER,
+                        ("[%d]switch to priority#%d "
+                         "thread:%.*s(sp:0x%08x), "
+                         "from thread:%.*s(sp: 0x%08x)\n",
+                         rt_interrupt_nest, highest_ready_priority,
+                         RT_NAME_MAX, to_thread->name, to_thread->sp,
+                         RT_NAME_MAX, from_thread->name, from_thread->sp));
+
+                    stack = from_thread->sp;
+                    rt_kprintf("cpsr : 0x%08x\n", stack->cpsr);
+                    rt_kprintf("r0   : 0x%08x\n", stack->r0);
+                    rt_kprintf("r1   : 0x%08x\n", stack->r1);
+                    rt_kprintf("r2   : 0x%08x\n", stack->r2);
+                    rt_kprintf("r3   : 0x%08x\n", stack->r3);
+                    rt_kprintf("r4   : 0x%08x\n", stack->r4);
+                    rt_kprintf("r5   : 0x%08x\n", stack->r5);
+                    rt_kprintf("r6   : 0x%08x\n", stack->r6);
+                    rt_kprintf("r7   : 0x%08x\n", stack->r7);
+                    rt_kprintf("r8   : 0x%08x\n", stack->r8);
+                    rt_kprintf("r9   : 0x%08x\n", stack->r9);
+                    rt_kprintf("r10  : 0x%08x\n", stack->r10);
+                    rt_kprintf("fp   : 0x%08x\n", stack->fp);
+                    rt_kprintf("ip   : 0x%08x\n", stack->ip);
+                    rt_kprintf("lr   : 0x%08x\n", stack->lr);
+                    rt_kprintf("pc   : 0x%08x\n", stack->pc);
+                }
 
 #ifdef RT_USING_OVERFLOW_CHECK
                 _scheduler_stack_check(to_thread);
@@ -767,8 +819,8 @@ void rt_schedule_insert_thread(struct rt_thread *thread)
                               &(thread->tlist));
     }
 
-    RT_DEBUG_LOG(RT_DEBUG_SCHEDULER, ("insert thread[%.*s], the priority: %d\n",
-                                      RT_NAME_MAX, thread->name, thread->current_priority));
+    // RT_DEBUG_LOG(RT_DEBUG_SCHEDULER, ("insert thread[%.*s], the priority: %d\n",
+    //                                   RT_NAME_MAX, thread->name, thread->current_priority));
 
     /* set priority mask */
 #if RT_THREAD_PRIORITY_MAX > 32
@@ -851,9 +903,9 @@ void rt_schedule_remove_thread(struct rt_thread *thread)
     /* disable interrupt */
     level = rt_hw_interrupt_disable();
 
-    RT_DEBUG_LOG(RT_DEBUG_SCHEDULER, ("remove thread[%.*s], the priority: %d\n",
-                                      RT_NAME_MAX, thread->name,
-                                      thread->current_priority));
+    // RT_DEBUG_LOG(RT_DEBUG_SCHEDULER, ("remove thread[%.*s], the priority: %d\n",
+    //                                   RT_NAME_MAX, thread->name,
+    //                                   thread->current_priority));
 
     /* remove thread from ready list */
     rt_list_remove(&(thread->tlist));

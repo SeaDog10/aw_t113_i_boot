@@ -228,10 +228,11 @@ void rt_hw_trap_irq(void)
     extern struct rt_irq_desc isr_table[];
 
     int_ack = rt_hw_interrupt_get_irq();
-
+    rt_kprintf("rt_hw_trap_irq %d\n", int_ack);
     ir = int_ack & GIC_ACK_INTID_MASK;
     if (ir == 1023)
     {
+        rt_hw_interrupt_ack(int_ack);
         /* Spurious interrupt */
         return;
     }
